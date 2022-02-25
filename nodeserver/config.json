@@ -1,0 +1,11 @@
+{
+
+	"var 1" :{
+		"subvar" : "values",
+		"subvar2": "value"
+	},
+	"osc" :{
+		"port": 9002,
+		"host" : "127.0.0.1"
+	}
+}

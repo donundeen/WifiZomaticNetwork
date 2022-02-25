@@ -1,0 +1,16 @@
+{
+  "type": "module",
+  "name": "WifiZomaticNetwork",
+  "version": "1.0.0",
+  "description": "A server for handling the interaction between cybord plants ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dgram": "^1.0.1",
+    "node-osc": "^6.1.11"
+  }
+}
