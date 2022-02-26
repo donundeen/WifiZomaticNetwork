@@ -8,10 +8,14 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 import { Server } from 'node-osc';
+import { Bundle, Client } from 'node-osc';
+
 const config = require("./config.json");
 
 var PORT = config.osc.port;
 var HOST = config.osc.host;
+
+var plant1ip = "10.0.0.225";
 
 
 console.log("setting up to listen on " + HOST + " port " + PORT);
@@ -27,16 +31,25 @@ oscServer.on('message', function (msg) {
   var path = msg[0];
   var letter = msg[1];
   var number = msg[2];
-  // if addone and letter is one of A, C, E,G,J
-  if(addone && buggyLetters.indexOf(letter) > -1 ){
-  	number++;
-  }
   var command = letter+number;
   console.log("command " + command);
+  sendOSC(9);
 });
 
 
+function runTest(){
+	sendOSC(201);
+}
+
 // need send OSC command
+function sendOSC(message){
+	console.log("sending " + 9);
+	const client = new Client(plant1ip, 9003);
+	client.send('/plantmessage', 200, () => {
+		client.close();
+    });
+
+}
 
 
 

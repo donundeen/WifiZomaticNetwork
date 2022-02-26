@@ -16,7 +16,15 @@
 
 
 // this is all the OSC libraries
+
+#ifdef BOARD_HAS_USB_SERIAL
+#include <SLIPEncodedUSBSerial.h>
+  SLIPEncodedUSBSerial SLIPSerial( thisBoardsSerialUSB );
+#else
 #include <SLIPEncodedSerial.h>
+  SLIPEncodedSerial SLIPSerial(Serial1);
+#endif
+
 #include <OSCData.h>
 #include <OSCBundle.h>
 #include <OSCBoards.h>
@@ -34,7 +42,7 @@ const char *WIFI_PASSWORD = "WeL0veLettuce";
 //const char *WIFI_PASSWORD = "";
 //const char * UDPReceiverIP = "10.0.0.164"; // ip where UDP messages are going
 // const char *UDPReceiverIP = "10.0.0.174"; // main laptop // ip where UDP messages are going
-const char *UDPReceiverIP = "10.0.0.181"; // mac mini // ip where UDP messages are going
+const char *UDPReceiverIP = "10.0.0.162"; // mac mini // ip where UDP messages are going
 //const char *UDPReceiverIP = "192.168.8.168"; // ip where UDP messages are going
 
 const int UDPPort = 9002; // the UDP port that Max is listening on
@@ -58,22 +66,44 @@ void setup() {
     delay(500);
   }
   Serial.println("Wifi connected");
+
+  
+  
 }
 void loop() {
   // put your main code here, to run repeatedly:
+  sendOSCUDP("A", 5);
+
+
+
   
+   OSCBundle bundleIN;
+   int size;
+ 
+   if( (size = udp.parsePacket())>0)
+   {
+     Serial.println("got message");
+     while(size--){
+      Serial.println(size);
+       bundleIN.fill(udp.read());
+     }
+     if(!bundleIN.hasError()){
+       bundleIN.route("/plantmessage", handleinput);
+     }
+   }
   delay(1000);
+
 }
 
 
+void handleinput(OSCMessage &msg, int num){
+  Serial.println("handling input");
+  
+}
+
 // sending data over OSC/UDP.
 void sendOSCUDP(String letter, int number){
-  /* egs
-   *  '/perifit/1', valueInt1, valueInt2, device.name);
-   *  28:ec:9a:14:2b:b3 l 180
-      28:ec:9a:14:2b:b3 u 1391
-   *  
-   */
+
   configUdp();
    
  if(WiFi.status() == WL_CONNECTED){   
