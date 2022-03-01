@@ -4,8 +4,10 @@
 #include <ArduinoOSCWiFi.h>
 // #include <ArduinoOSC.h> // you can use this if your borad supports only WiFi or Ethernet
 
-const char *WIFI_SSID = "JJandJsKewlPad";
-const char *WIFI_PASSWORD = "WeL0veLettuce";
+//const char *WIFI_SSID = "JJandJsKewlPad";
+//const char *WIFI_PASSWORD = "WeL0veLettuce";
+const char *WIFI_SSID = "log.local";
+const char *WIFI_PASSWORD = "";
 
 // WiFi stuff
 const char* ssid = "JJandJsKewlPad";

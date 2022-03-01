@@ -50,7 +50,7 @@ oscServer.on('message', function (msg, info) {
   var command = letter+number;
   console.log("command " + command);
 
-  sendOSCtoAll(9);
+  sendOSCtoAll([321,123]);
 });
 
 
