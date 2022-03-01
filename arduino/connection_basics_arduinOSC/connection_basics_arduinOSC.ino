@@ -1,3 +1,9 @@
+/*
+ * Board types
+ * ESP32 Arduino -> Adafruit ESP32 Feather
+ * ESP32 Adruino -> ESP32 Dev Module
+ */
+
 /*#include <Arduino.h>
 #include <WiFi.h>
 */
@@ -25,7 +31,6 @@ int i; float f; String s;
 int publish_port= 9002;
 int bind_port = 9003;
 
-int ledpin = LED_BUILTIN;
 
 // for ArduinoOSC
 const int recv_port = 9003;
@@ -33,20 +38,26 @@ const int send_port = 55555;
 // send / receive varibales
 
 String arduinomacs[]= { 
-"40:F5:20:45:D5:14", 
-"C4:DD:57:9C:DC:A4"
+"40:F5:20:45:D5:14",
+"C4:DD:57:9C:DC:A4",
+"30:AE:A4:9D:7C:44",
+"rpi:mac:address"
 };
 
 int arduinoips[] = {
   224,
-  225
+  225,
+  226,
+  74
 };
 
-int numplants = 2;
+int numplants = 3;
 
 String humannames[] = { 
   "stick",
-  "pinecone"
+  "pinecone",
+  "devmodule",
+  "mothertree"
 };
 
 String ipprefix  = "10.0.0.";
@@ -75,11 +86,14 @@ void onPlantMessageReceived(const OscMessage& m) {
     Serial.print(m.arg<String>(2));
     */
     Serial.println();
+
+    sendToAll("/plantmessage", 666);
+//    count++;
     
 }
 
 void setup() {
-    pinMode(LED_BUILTIN, OUTPUT);
+//    pinMode(LED_BUILTIN, OUTPUT);
   
     Serial.begin(115200);
     delay(2000);
@@ -172,9 +186,10 @@ void sendPlantMessage(String host, int part1, int part2){
 
 void fastblink(int times){
   for(int i = 0; i< times; i++){
-    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+    
+    //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
     delay(250);                       // wait for a second
-    digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
     delay(250);  
   }
 }

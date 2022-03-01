@@ -18,7 +18,8 @@ var HOST = config.osc.host;
 var plant1ip = "10.0.0.224";
 
 var plants = {"10.0.0.224":{},
-              "10.0.0.225":{}};
+              "10.0.0.225":{},
+              "10.0.0.226":{}};
 
 var messageCount = 0;
 
