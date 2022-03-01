@@ -19,6 +19,7 @@ var plant1ip = "10.0.0.225";
 
 var plants = {"10.0.0.225":{}};
 
+var messageCount = 0;
 
 console.log("setting up to listen on " + HOST + " port " + PORT);
 
@@ -50,12 +51,15 @@ oscServer.on('message', function (msg, info) {
   var command = letter+number;
   console.log("command " + command);
 
-  sendOSCtoAll([321,123]);
+  sendOSCtoAll([321,messageCount]);
+  messageCount++;
 });
 
 
 function runTest(){
-	sendOSCtoAll([201, 101]);
+	sendOSCtoAll([201, messageCount]);
+  messageCount++;
+
 }
 
 // need send OSC command

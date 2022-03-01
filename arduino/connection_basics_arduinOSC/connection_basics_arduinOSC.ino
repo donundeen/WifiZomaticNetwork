@@ -4,14 +4,14 @@
 #include <ArduinoOSCWiFi.h>
 // #include <ArduinoOSC.h> // you can use this if your borad supports only WiFi or Ethernet
 
-//const char *WIFI_SSID = "JJandJsKewlPad";
-//const char *WIFI_PASSWORD = "WeL0veLettuce";
-const char *WIFI_SSID = "log.local";
-const char *WIFI_PASSWORD = "";
+
 
 // WiFi stuff
-const char* ssid = "JJandJsKewlPad";
-const char* pwd = "WeL0veLettuce";
+//const char* ssid = "JJandJsKewlPad";
+//const char* pwd = "WeL0veLettuce";
+const char* ssid = "log.local";
+const char* pwd = "";
+
 const IPAddress ip(10, 0, 0, 225);
 const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
@@ -56,6 +56,8 @@ void setup() {
     delay(2000);
 
     // WiFi stuff (no timeout setting for WiFi)
+    Serial.print("connecting to SSID ");
+    Serial.println(ssid);
 #ifdef ESP_PLATFORM
     WiFi.disconnect(true, true);  // disable wifi, erase ap info
     delay(1000);
