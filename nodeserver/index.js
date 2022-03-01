@@ -41,7 +41,7 @@ oscServer.on('message', function (msg, info) {
   }
   */
   var sourceip = info.address;
-  if(!plantips[sourceip]){
+  if(!plants[sourceip]){
     plants[sourceip] = {info: info};
   }
   var path = msg[0];

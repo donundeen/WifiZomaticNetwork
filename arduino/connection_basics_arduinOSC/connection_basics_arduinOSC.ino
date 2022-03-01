@@ -20,7 +20,8 @@ int bind_port = 9003;
 
 
 // for ArduinoOSC
-const char* host = "10.0.0.162";
+//const char* host = "10.0.0.162";
+const char* host = "10.0.0.74";
 const int recv_port = 9003;
 const int send_port = 55555;
 // send / receive varibales
@@ -36,9 +37,9 @@ void onPlantMessageReceived(const OscMessage& m) {
     Serial.print(" ");
     Serial.print(m.address());
     Serial.print(" ");
+    // be mindful of the number of arguments to expect, and their type
     Serial.print(m.arg<int>(0));
     Serial.print(" ");
-    
     Serial.print(m.arg<int>(1));
     /*
     Serial.print(" ");
