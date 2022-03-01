@@ -17,6 +17,8 @@ var HOST = config.osc.host;
 
 var plant1ip = "10.0.0.225";
 
+var plants = {"10.0.0.225":{}};
+
 
 console.log("setting up to listen on " + HOST + " port " + PORT);
 
@@ -25,31 +27,51 @@ var oscServer = new Server(PORT, '0.0.0.0', () => {
   runTest();
 });
 
-oscServer.on('message', function (msg) {
+oscServer.on('message', function (msg, info) {
   console.log(`Message: ${msg}`);
   console.log(msg);
+  console.log(JSON.stringify(info, null, '  '));
+  /*
+  info format:
+  {
+  "address": "10.0.0.225",
+  "family": "IPv4",
+  "port": 9003,
+  "size": 32
+  }
+  */
+  var sourceip = info.address;
+  if(!plantips[sourceip]){
+    plants[sourceip] = {info: info};
+  }
   var path = msg[0];
   var letter = msg[1];
   var number = msg[2];
   var command = letter+number;
   console.log("command " + command);
-  sendOSC(9);
+
+  sendOSCtoAll(9);
 });
 
 
 function runTest(){
-	sendOSC(201);
+	sendOSCtoAll([201, 101]);
 }
 
 // need send OSC command
-function sendOSC(message){
-	console.log("sending " + 9);
-	const client = new Client(plant1ip, 9003);
-	client.send('/plantmessage', 200, () => {
+function sendOSC(ip, message){
+	console.log("sending " + message);
+	const client = new Client(ip, 9003);
+	client.send('/plantmessage', message, () => {
 		client.close();
-    });
-
+  });
 }
 
+function sendOSCtoAll(message){
+  var ips = Object.keys(plants);
+  for(var i = 0; i<ips.length; i++){
+    sendOSC(ips[i], message);
+  }
+}
 
 

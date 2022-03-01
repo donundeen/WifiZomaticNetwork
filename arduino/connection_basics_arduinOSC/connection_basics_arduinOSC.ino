@@ -25,7 +25,7 @@ const int recv_port = 9003;
 const int send_port = 55555;
 // send / receive varibales
 
-void onOscReceived(const OscMessage& m) {
+void onPlantMessageReceived(const OscMessage& m) {
   Serial.println("message received");
   
     Serial.print(m.remoteIP());
@@ -38,8 +38,9 @@ void onOscReceived(const OscMessage& m) {
     Serial.print(" ");
     Serial.print(m.arg<int>(0));
     Serial.print(" ");
+    
+    Serial.print(m.arg<int>(1));
     /*
-    Serial.print(m.arg<float>(1));
     Serial.print(" ");
     Serial.print(m.arg<String>(2));
     */
@@ -72,62 +73,30 @@ void setup() {
     OscWiFi.publish(host, publish_port, "/publish/value", i, f, s)
         ->setFrameRate(60.f);
 */
-
+/*
+ * // this sends a message every 500 milliseconds
     OscWiFi.publish(host, publish_port, "/publish/func", &millis, &micros)
         ->setIntervalMsec(500.f);
-
-    // subscribe osc messages
-/*
-    OscWiFi.subscribe(bind_port, "/bind/values", i, f, s);
-
-    OscWiFi.subscribe(bind_port, "/lambda/bind/args",
-        [&](const int& i, const float& f, const String& s) {
-            Serial.print("/lambda/bind/args ");
-            Serial.print(i);
-            Serial.print(" ");
-            Serial.print(f);
-            Serial.print(" ");
-            Serial.print(s);
-            Serial.println();
-        });
-
-    OscWiFi.subscribe(recv_port, "/lambda/msg",
-        [](const OscMessage& m) {
-            Serial.print(m.remoteIP());
-            Serial.print(" ");
-            Serial.print(m.remotePort());
-            Serial.print(" ");
-            Serial.print(m.size());
-            Serial.print(" ");
-            Serial.print(m.address());
-            Serial.print(" ");
-            Serial.print(m.arg<int>(0));
-            Serial.print(" ");
-            Serial.print(m.arg<float>(1));
-            Serial.print(" ");
-            Serial.print(m.arg<String>(2));
-            Serial.println();
-        });
 */
 
-/*
-    OscWiFi.subscribe(recv_port, "/need/reply", []() {
-        Serial.println("/need/reply");
+  // this listens for messages, sends results to onPlantMessageReceived function
+    OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
 
-        int i = millis();
-        float f = (float)micros() / 1000.f;
-        String s = "hello";
-
-        OscWiFi.send(host, send_port, "/reply", i, f, s);
-    });
-*/
-    OscWiFi.subscribe(recv_port, "/plantmessage", onOscReceived);
+    
 }
 
+int count = 0;
 void loop() {
     OscWiFi.update();  // should be called to receive + send osc
+    count++;
+    // just send message 5 times, for testing
+    if(count <= 5){
+      OscWiFi.send(host, publish_port, "/singlesend/func", count, 456); // to publish osc
+    }
 
     // or do that separately
     // OscWiFi.parse(); // to receive osc
-    // OscWiFi.post(); // to publish osc
+   // send single message:
+//    OscWiFi.send(host, publish_port, "/singlesend/func", 123, 456); // to publish osc
+    delay(500);
 }
