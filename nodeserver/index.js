@@ -15,9 +15,10 @@ const config = require("./config.json");
 var PORT = config.osc.port;
 var HOST = config.osc.host;
 
-var plant1ip = "10.0.0.225";
+var plant1ip = "10.0.0.224";
 
-var plants = {"10.0.0.225":{}};
+var plants = {"10.0.0.224":{},
+              "10.0.0.225":{}};
 
 var messageCount = 0;
 
