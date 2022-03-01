@@ -99,11 +99,12 @@ void loop() {
       Serial.print("sending message to " );
       Serial.println(host);
       OscWiFi.send(host, publish_port, "/singlesend/func", count, 456); // to publish osc
+      delay(500);
     }
 
     // or do that separately
     // OscWiFi.parse(); // to receive osc
    // send single message:
 //    OscWiFi.send(host, publish_port, "/singlesend/func", 123, 456); // to publish osc
-    delay(500);
+//    delay(500);
 }

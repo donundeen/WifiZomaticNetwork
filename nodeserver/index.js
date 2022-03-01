@@ -59,14 +59,6 @@ oscServer.on('message', function (msg, info) {
 function runTest(){
   sendOSCtoAll([201, messageCount]);
   messageCount++;
-  sendOSCtoAll([201, messageCount]);
-  messageCount++;
-  sendOSCtoAll([201, messageCount]);
-  messageCount++;
-  sendOSCtoAll([201, messageCount]);
-  messageCount++;
-  sendOSCtoAll([201, messageCount]);
-  messageCount++;
 
 }
 
