@@ -60,7 +60,7 @@ function runTest(){
 
 // need send OSC command
 function sendOSC(ip, message){
-	console.log("sending " + message);
+	console.log("sending " + message + " to " + ip);
 	const client = new Client(ip, 9003);
 	client.send('/plantmessage', message, () => {
 		client.close();
