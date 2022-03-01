@@ -87,3 +87,5 @@ function sendOSCtoAll(message){
 }
 
 
+setInterval(runTest, 5000);
+
