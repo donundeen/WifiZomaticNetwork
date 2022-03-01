@@ -38,33 +38,45 @@ const int send_port = 55555;
 // send / receive varibales
 
 String arduinomacs[]= { 
+"40:F5:20:44:B1:3C",
 "40:F5:20:45:D5:14",
+"40:F5:20:45:D0:18",
 "C4:DD:57:9C:DC:A4",
+"40:F5:20:45:D0:A4",
 "30:AE:A4:9D:7C:44",
-"rpi:mac:address"
+"rpi:mac:address",
+"ap:mac:address",
 };
 
 int arduinoips[] = {
   224,
   225,
   226,
-  74
+  227,
+  228,
+  229,
+  74,
+  203,
 };
 
-int numplants = 3;
+int numplants = 7;
 
 String humannames[] = { 
   "stick",
   "pinecone",
+  "dirt",
+  "branch",
+  "seedling",
   "devmodule",
-  "mothertree"
+  "mothertree",
+  "accesspoint"
 };
 
 String ipprefix  = "10.0.0.";
 String thisarduinomac = "";
 String thishumanname = "";
 int thisarduinoip = 0;
-
+int sendcount = 0;
 
 void onPlantMessageReceived(const OscMessage& m) {
   Serial.println("message received");
@@ -87,13 +99,13 @@ void onPlantMessageReceived(const OscMessage& m) {
     */
     Serial.println();
 
-    sendToAll("/plantmessage", 666);
-//    count++;
+    sendToAll("/plantmessage", sendcount);
+    sendcount++;
     
 }
 
 void setup() {
-//    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
   
     Serial.begin(115200);
     delay(2000);
@@ -145,11 +157,12 @@ void setup() {
 int count = 0;
 void loop() {
     OscWiFi.update();  // should be called to receive + send osc
-    count++;
+    
     // just send message 5 times, for testing
-    if(count <= 5){
+    if(sendcount <= 5){
 //      sendPlantMessage(host, count, 456);
-      sendToAll("/plantmessage", count);
+      sendToAll("/plantmessage", sendcount);
+      sendcount++;
 //      OscWiFi.send(host, publish_port, "/plantmessage", count, 456); // to publish osc
       delay(500);
     }
@@ -187,9 +200,9 @@ void sendPlantMessage(String host, int part1, int part2){
 void fastblink(int times){
   for(int i = 0; i< times; i++){
     
-    //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
     delay(250);                       // wait for a second
-    //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
     delay(250);  
   }
 }
