@@ -92,6 +92,8 @@ void loop() {
     count++;
     // just send message 5 times, for testing
     if(count <= 5){
+      Serial.print("sending message to " );
+      Serial.println(host);
       OscWiFi.send(host, publish_port, "/singlesend/func", count, 456); // to publish osc
     }
 

@@ -28,7 +28,7 @@ var oscServer = new Server(PORT, '0.0.0.0', () => {
 });
 
 oscServer.on('message', function (msg, info) {
-  console.log(`Message: ${msg}`);
+  console.log(`Got Message: ${msg}`);
   console.log(msg);
   console.log(JSON.stringify(info, null, '  '));
   /*
