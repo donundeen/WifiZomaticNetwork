@@ -17,8 +17,8 @@ do
     do
         if [ "${val}" != "00" ]; then
 	    newval=$(printf '%d' "0x$val")
-            newval=$(expr $newval % 52 - 26)
-            segment=$(printf ' sin %%%d ' "$newval")
+            newval=$(expr $newval % 52 - 32)
+            segment=$(printf ' sawtooth %%%d ' "$newval")
             command="${command}${segment}"
             ((segmentcount++))
         fi
