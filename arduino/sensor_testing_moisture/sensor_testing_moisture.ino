@@ -100,14 +100,19 @@ void onPlantMessageReceived(const OscMessage& m) {
     Serial.println();
 
     sendToAll("/plantmessage", sendcount);
-    sendcount++;
-    
+    sendcount++;  
 }
 
 void setup() {
-    pinMode(LED_BUILTIN, OUTPUT);
-  
+
     Serial.begin(115200);
+
+    setup_sensor();
+
+    Serial.println(LED_BUILTIN);
+    Serial.println(A8);
+    pinMode(LED_BUILTIN, OUTPUT);
+      
     delay(2000);
 
     fastblink(3);
@@ -121,43 +126,44 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
+   
 #ifdef ESP_PLATFORM
     WiFi.disconnect(true, true);  // disable wifi, erase ap info
     delay(1000);
     WiFi.mode(WIFI_STA);
 #endif
+
     WiFi.begin(ssid, pwd);
     WiFi.config(ip, gateway, subnet);
+    
     while (WiFi.status() != WL_CONNECTED) {
         Serial.print(".");
         fastblink(2);
 //        delay(500);
     }
+    
     Serial.print("WiFi connected, IP = ");
     Serial.println(WiFi.localIP());
 
     // publish osc messages (default publish rate = 30 [Hz])
 
-/*
-    OscWiFi.publish(host, publish_port, "/publish/value", i, f, s)
-        ->setFrameRate(60.f);
-*/
-/*
- * // this sends a message every 500 milliseconds
-    OscWiFi.publish(host, publish_port, "/publish/func", &millis, &micros)
-        ->setIntervalMsec(500.f);
-*/
+
 
   // this listens for messages, sends results to onPlantMessageReceived function
     OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
 
-    
+  
 }
 
 int count = 0;
 void loop() {
+
+    loop_sensor();
+  /*
     OscWiFi.update();  // should be called to receive + send osc
-    
+*/
+  
+    /*
     // just send message 5 times, for testing
     if(sendcount <= 5 || random(100) < 5){
 //      sendPlantMessage(host, count, 456);
@@ -166,12 +172,8 @@ void loop() {
 //      OscWiFi.send(host, publish_port, "/plantmessage", count, 456); // to publish osc
       delay(500);
     }
+*/
 
-    // or do that separately
-    // OscWiFi.parse(); // to receive osc
-   // send single message:
-//    OscWiFi.send(host, publish_port, "/singlesend/func", 123, 456); // to publish osc
-//    delay(500);
 }
 
 void sendToAll(String channel, int message){
@@ -229,4 +231,32 @@ void resolveids(){
   Serial.println(thisarduinoip);
   Serial.print("human name : " );
   Serial.println(thishumanname);
+}
+
+int fsrAnalogPin = A4;
+int fsrReading  = 3;      // the analog reading from the FSR resistor divider
+
+void setup_sensor(){
+/* A4 / 36 ( 8 up from bottom on long side) - 
+ *  this is an analog input A4 and also GPI #36. 
+ *  Note it is _not_ an output-capable pin! It uses ADC #1
+
+// 3V is 2nd down from top on long 
+// gnd is 4 down on long side
+*/
+/*
+ * Connect one end of photo resistor  to 3V, the other end to Analog 4 .
+Then connect one end of a 10K resistor from Analog 8 to ground
+
+
+ */
+}
+
+void loop_sensor(){
+  Serial.println(fsrAnalogPin);
+  fsrReading = analogRead(fsrAnalogPin);
+  Serial.print("Analog reading = ");
+  Serial.println(fsrReading);
+  delay(500);
+
 }
