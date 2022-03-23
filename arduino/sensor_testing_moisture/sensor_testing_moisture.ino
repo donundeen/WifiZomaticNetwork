@@ -245,8 +245,9 @@ void setup_sensor(){
 // gnd is 4 down on long side
 */
 /*
- * Connect one end of photo resistor  to 3V, the other end to Analog 4 .
-Then connect one end of a 10K resistor from Analog 8 to ground
+ * Connect vcc out from HL-01 to 3V, 
+ * Connect AO out  to Analog 4 .
+ * Connect Gnd to Ground
 
 
  */
@@ -258,5 +259,4 @@ void loop_sensor(){
   Serial.print("Analog reading = ");
   Serial.println(fsrReading);
   delay(500);
-
 }
