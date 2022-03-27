@@ -243,26 +243,51 @@ void resolveids(){
  * 
  */
 
-int triggerPin =  A0 ; //(GPIO 26)
+int triggerPin1 =  A0 ; //(GPIO 26) // 5 down on long side
+int triggerPin2 =  A1 ; //(GPIO 26) // 6 down on long side
+int val1 = LOW;
+int val2 = LOW;
 
 void setup_actuator(){
     // join I2C bus (I2Cdev library doesn't do this automatically)
  //   Wire.begin();
 //    motor.init();
-    pinMode(triggerPin, OUTPUT);
+    pinMode(triggerPin1, OUTPUT);
+  //  pinMode(triggerPin2, OUTPUT);
 
 
 }
 
+int flipcount = 0;
 void loop_actuator(){
     // drive 2 dc motors at speed=255, clockwise
-    Serial.println("off");
-    
-    digitalWrite(triggerPin, LOW);
-    delay(50);
-    Serial.println("on");
+    Serial.println("loop");
 
-    digitalWrite(triggerPin, HIGH);
+    randflip(250);
     delay(50);
+
+}
+
+
+// the higher the threshold value, the MORE flipping that should happen
+void randflip(int threshold){
+  Serial.println("randflip");
+  int rand1 = random(1000);
+  Serial.println(rand1);
+ 
+  if(rand1 < threshold){
+    Serial.println(flipcount++);
+    val1 = (val1 == LOW ? HIGH : LOW);
+    Serial.print("val1 ");
+    Serial.println(val1);
+    digitalWrite(triggerPin1, val1);    
+  }
+  /*
+  if(random(1000) < threshold){
+    val2 = (val2 == LOW ? HIGH : LOW);
+    Serial.println(val2);
+    digitalWrite(triggerPin2, val2);    
+  }
+*/
 
 }

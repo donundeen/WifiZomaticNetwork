@@ -233,10 +233,16 @@ void resolveids(){
   Serial.println(thishumanname);
 }
 
-int vibeDigitalPin = A4;
-int vibeReading  = 3;      // the analog reading from the FSR resistor divider
+int vibeDigitalPin = A4;  //
+// A12: 4 down on short side. has internal pullup
+//13; 
+//A4; / 36 ( 8 up from bottom on long side) - 
+
+int vibeReading  = LOW;      // the analog reading from the vibe (on or off)
 
 void setup_sensor(){
+  // ugh, now this is not working, even though it works to just make contact with bare wires.
+  // So problem with the switch?
 /* A4 / 36 ( 8 up from bottom on long side) - 
  *  this is an analog input A4 and also GPI #36. 
  *  Note it is _not_ an output-capable pin! It uses ADC #1
@@ -245,11 +251,11 @@ void setup_sensor(){
 // gnd is 4 down on long side
 */
 /*
- * Connect one end of vibe sensore to GPIO 36, 
+ * Connect one end of vibe sensor to GPIO 36, 
  * Connect other end to power .
  * Connect gpio36  to Ground with a 10k resistor (PULL-DOWN resistor)
  */
-  pinMode(vibeDigitalPin, INPUT);
+  pinMode(vibeDigitalPin, INPUT_PULLUP);
 
  
 }
@@ -257,7 +263,7 @@ void setup_sensor(){
 void loop_sensor(){
   Serial.println(vibeDigitalPin);
   vibeReading =  digitalRead(vibeDigitalPin);
-  Serial.print("Digital reading = ");
+  Serial.print("Digital reading ..= ");
   Serial.println(vibeReading);
   delay(10);
 }
