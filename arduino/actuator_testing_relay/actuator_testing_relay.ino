@@ -264,7 +264,7 @@ void loop_actuator(){
     Serial.println("loop");
 
     randflip(250);
-    delay(50);
+    delay(100);
 
 }
 
