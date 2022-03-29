@@ -1,7 +1,7 @@
 /* Node Server for WifiZomatic Network.
 It does:
-- data interchange btw nodes
-- source/sink db
+- data interchange btw nodes // actualy I'm changing this. It only does stuff it needs to as  its own mother tree node.
+- source/sink db // stores nutrient and shares them
 - other things?
 */
 import { createRequire } from "module";
@@ -50,39 +50,43 @@ oscServer.on('message', function (msg, info) {
   if(!plants[sourceip]){
     plants[sourceip] = {info: info};
   }
-  var path = msg[0];
+  var channel = msg[0];
   var letter = msg[1];
   var number = msg[2];
   var command = letter+number;
   console.log("command " + command);
+// process messaged based on the channel. No rebroadcast.
 
-  sendOSCtoAll([321,messageCount]);
-  messageCount++;
+//  sendOSCtoAll([321,messageCount],channel, sourceip);
+//  messageCount++;
 });
 
 
 function runTest(){
-  sendOSCtoAll([201, messageCount]);
+  sendOSCtoAll([201, messageCount], "/plantmessage", false);
   messageCount++;
 
 }
 
 // need send OSC command
-function sendOSC(ip, message){
-	console.log("sending " + message + " to " + ip);
+function sendOSC(ip, message, channel){
+	console.log("sending " + channel + " : " + message + " to " + ip);
 	const client = new Client(ip, 9003);
-	client.send('/plantmessage', message, () => {
+//	client.send('/plantmessage', message, () => {
+	client.send(channel, message, () => {
 		client.close();
   });
 }
 
-function sendOSCtoAll(message){
+function sendOSCtoAll(message, channel, skipip){
   var ips = Object.keys(plants);
   for(var i = 0; i<ips.length; i++){
-    sendOSC(ips[i], message);
+    if(ips[i] != skipip){
+        sendOSC(ips[i], message, channel);
+    }
   }
 }
 
 
-setInterval(runTest, 5000);
+//setInterval(runTest, 5000);
 
