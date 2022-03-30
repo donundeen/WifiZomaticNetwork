@@ -241,7 +241,8 @@ void resolveids(){
  * https://docs.arduino.cc/learn/electronics/servo-motors
  * Brown wire (black ) to ground 
  * middle wire (orange) to Power (3v on arduino?)
- * Yellow wire to Analog Out Pin: 
+ * Yellow wire to Analog Out Pin: A0 - (5 down on long side) this is an analog input A0 and also an analog output DAC2. It can also be used as a GPIO #26. It uses ADC #2
+
  * 
  * * **A0** - (5 down on long side) this is an analog input A0 and also an analog output DAC2. It can also be used as a GPIO #26. It uses ADC #2
 * **A1** - (6 down on long side) this is an analog input A1 and also an analog output DAC1. It can also be used as a GPIO #25. It uses ADC #2
@@ -255,7 +256,7 @@ void resolveids(){
  * testing:
  * 80 is clockwise
  * 90 is slower clockwise
- * 
+ * 95 is stop
  */
 int servoPin = A0;
 Servo myservo;  // create servo object to control a servo
