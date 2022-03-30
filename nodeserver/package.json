@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aplay": "^1.2.0",
     "dgram": "^1.0.1",
     "node-osc": "^6.1.11"
   }

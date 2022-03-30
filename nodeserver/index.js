@@ -12,6 +12,9 @@ import { Bundle, Client } from 'node-osc';
 
 const config = require("./config.json");
 
+var Sound = require("aplay");
+new Sound().play("/home/pi/WifiZomaticNetwork/audio/fs1.wav");
+
 var PORT = config.osc.port;
 var HOST = config.osc.host;
 
@@ -54,9 +57,16 @@ oscServer.on('message', function (msg, info) {
   var letter = msg[1];
   var number = msg[2];
   var command = letter+number;
-  console.log("command " + command);
+  console.log("command " + channel);
 // process messaged based on the channel. No rebroadcast.
-
+  switch(channel){
+    case "/poop":
+      doPoop();
+      break;
+    default:
+      console.log("don't understand command channel " + channel);
+      // do nothing
+  }
 //  sendOSCtoAll([321,messageCount],channel, sourceip);
 //  messageCount++;
 });
@@ -87,6 +97,11 @@ function sendOSCtoAll(message, channel, skipip){
   }
 }
 
+
+function doPoop(){
+  console.log("farting");
+  new Sound().play("/home/pi/WifiZomaticNetwork/audio/fs1.wav");
+}
 
 //setInterval(runTest, 5000);
 
