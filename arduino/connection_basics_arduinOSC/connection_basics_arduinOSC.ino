@@ -43,7 +43,8 @@ String arduinomacs[]= {
 "40:F5:20:45:D0:18",
 "C4:DD:57:9C:DC:A4",
 "40:F5:20:45:D0:A4",
-"30:AE:A4:9D:7C:44",
+"C4:DD:57:9C:CA:20",
+"3C:61:05:4A:5F:C0",
 "rpi:mac:address",
 "ap:mac:address",
 };
@@ -55,11 +56,12 @@ int arduinoips[] = {
   227,
   228,
   229,
+  230,
   74,
   203,
 };
 
-int numplants = 7;
+int numplants = 8;
 
 String humannames[] = { 
   "stick",
@@ -67,11 +69,11 @@ String humannames[] = {
   "dirt",
   "branch",
   "seedling",
-  "devmodule",
+  "leaf",
+  "root",
   "mothertree",
   "accesspoint"
 };
-
 String ipprefix  = "10.0.0.";
 String thisarduinomac = "";
 String thishumanname = "";
