@@ -4,15 +4,12 @@
  * ESP32 Adruino -> ESP32 Dev Module
  */
 
-//#include "Grove_Motor_Driver_TB6612FNG.h"
-//#include <Wire.h>
- 
-
 /*#include <Arduino.h>
 #include <WiFi.h>
 */
 #include <ArduinoOSCWiFi.h>
 // #include <ArduinoOSC.h> // you can use this if your borad supports only WiFi or Ethernet
+#include <ESP32Servo.h>
 
 
 
@@ -103,15 +100,15 @@ void onPlantMessageReceived(const OscMessage& m) {
     */
     Serial.println();
 
-//    sendToAll("/plantmessage", sendcount);
+    sendToAll("/plantmessage", sendcount);
     sendcount++;  
 }
 
 void setup() {
 
-    Serial.begin(9600);
+    Serial.begin(115200);
 
-    setup_actuator();
+    setup_sensor();
 
     Serial.println(LED_BUILTIN);
     Serial.println(A8);
@@ -162,7 +159,7 @@ void setup() {
 int count = 0;
 void loop() {
 
-    loop_actuator();
+    loop_sensor();
   /*
     OscWiFi.update();  // should be called to receive + send osc
 */
@@ -237,82 +234,94 @@ void resolveids(){
   Serial.println(thishumanname);
 }
 
+int fsrAnalogPin = A4;
+int fsrReading  = 3;      // the analog reading from the FSR resistor divider
+
+
+// this plant can move a branch with a directed light detector. 
+// in "search" mode it moves around until it finds the max light level, then points at the max light
+// when it's in alert mode, if it detects a change in light, it switches to "alert" mode and sends an OSC 'danger' message
+// when it RECEIVES a 'danger' message, it goes into 'search' mode.
+// IOW, it doesn't respond to its OWN danger messages.
+String mode = "wait"; // 'search' or 'alert' or 'wait'
 
 /*
-https://learn.sparkfun.com/tutorials/tb6612fng-hookup-guide
-int AIN1 = 32; // green, short side, 4 up from bottom
-int AIN2 = 15; // green, next one up
-int PWMA = 33; // yellow, next one up
-int STBY = 27; // white, next one up
-// black to gnd, 4 down from long side
-// Red is V Motor (VM)
-// Orange is V Logic (VCC)
+ * https://docs.arduino.cc/learn/electronics/servo-motors
+ * Brown wire (black ) to ground 
+ * middle wire (orange) to Power (3v on arduino?)
+ * Yellow wire to Analog Out Pin: A0 - (5 down on long side) this is an analog input A0 and also an analog output DAC2. It can also be used as a GPIO #26. It uses ADC #2
+
+ * 
+ * * **A0** - (5 down on long side) this is an analog input A0 and also an analog output DAC2. It can also be used as a GPIO #26. It uses ADC #2
+* **A1** - (6 down on long side) this is an analog input A1 and also an analog output DAC1. It can also be used as a GPIO #25. It uses ADC #2
+* **3v** - 2 down on long side
+* **GnD** - 4 down on long side
+* Positions: for myservo.write(val);
+* "90" (1.5ms pulse) is stop, 
+* "180" (2ms pulse) is full speed forward, counterclockwise
+* "0" (1ms pulse) clockwise
+ * 
+ * testing:
+ * 80 is clockwise
+ * 90 is slower clockwise
  * 
  */
+int servoPin = A0;
+Servo myservo;  // create servo object to control a servo
+int stopSpeed = 95;
 
-int AIN1 = 32; // green, short side, 4 up from bottom
-int AIN2 = 15; // green, next one up
-int PWMA = 33; // yellow, next one up
-int STBY = 27; // white, next one up
+void setup_sensor(){
+/* A4 / 36 ( 8 up from bottom on long side) - 
+ *  this is an analog input A4 and also GPI #36. 
+ *  Note it is _not_ an output-capable pin! It uses ADC #1
 
-// setting PWM properties
-const int freq = 5000;
-const int ledChannel = 0;
-const int resolution = 8;
-    
-
-void setup_actuator(){
-    // join I2C bus (I2Cdev library doesn't do this automatically)
- //   Wire.begin();
-    Serial.begin(9600);
-//    motor.init();
-    pinMode(AIN1, OUTPUT);
-    pinMode(AIN2, OUTPUT);
-    pinMode(PWMA, OUTPUT);
-
-
-  // configure LED PWM functionalitites
-  ledcSetup(ledChannel, freq, resolution);
-  
-  // attach the channel to the GPIO to be controlled
-  ledcAttachPin(PWMA, ledChannel);
+// 3V is 2nd down from top on long 
+// gnd is 4 down on long side
+*/
+/*
+ * Connect one end of photoresistor  to 5V, the other end to Analog 4 (gpio36).
+Then connect one end of a 10K resistor from Analog 4 to ground
+ */
+   myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
 
 }
 
-void loop_actuator(){
-    // drive 2 dc motors at speed=255, clockwise
-    Serial.println("run at speed=255 CW");
-//    digitalWrite(PWMA, HIGH);
-    ledcWrite(ledChannel, 100);
-    
-    digitalWrite(AIN1, HIGH);
-    digitalWrite(AIN2, LOW);
-    delay(500);
-    
-    // brake
-    Serial.println("stop"); // stop is more forceful
-//    digitalWrite(PWMA, HIGH);
-    ledcWrite(ledChannel, 100);
-    
-    digitalWrite(AIN1, LOW);
-    digitalWrite(AIN2, LOW);    
-    delay(1000);
+void loop_sensor(){
+  Serial.println(fsrAnalogPin);
+  fsrReading = analogRead(fsrAnalogPin);
+  Serial.print("Analog reading = ");
+  Serial.println(fsrReading);
+  move_servo();
+}
 
-    Serial.println("run at speed=255 CCW");
-//    digitalWrite(PWMA, HIGH);
-    ledcWrite(ledChannel, 100);// this lets you control the speed
-    
-    digitalWrite(AIN1, LOW);
-    digitalWrite(AIN2, HIGH);
-    delay(1000);
 
-    // brake
-    Serial.println("brake"); // brake is lazy
-//    digitalWrite(PWMA, LOW);
-    ledcWrite(ledChannel, 0);
+void move_servo(){
+ int speedDir = stopSpeed; // stop?
+  Serial.println(speedDir);
+  myservo.write(speedDir); 
+  delay(1000); 
+  speedDir = 0;
+  Serial.println(speedDir);
+  myservo.write(speedDir); 
+  delay(1000); 
+  speedDir = stopSpeed;
+  Serial.println(speedDir);
+  myservo.write(speedDir); 
+  delay(1000); 
+  speedDir = 180;
+  Serial.println(speedDir);
+  myservo.write(speedDir); 
+  delay(1000); 
+  speedDir = stopSpeed;
+  Serial.println(speedDir);
+  myservo.write(speedDir); 
+  delay(1000); 
+  
+}
 
-    digitalWrite(AIN1, HIGH);
-    digitalWrite(AIN2, LOW);    
-    delay(2000);    
-
+int read_light(){
+  int lightvalue = analogRead(fsrAnalogPin);
+  Serial.print("Analog reading = ");
+  Serial.println(fsrReading);
+  return lightvalue;
 }

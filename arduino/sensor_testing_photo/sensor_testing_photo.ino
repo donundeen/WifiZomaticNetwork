@@ -245,8 +245,8 @@ void setup_sensor(){
 // gnd is 4 down on long side
 */
 /*
- * Connect one end of Flex  to 5V, the other end to Analog 8.
-Then connect one end of a 10K resistor from Analog 8 to ground
+ * Connect one end of photoresistor  to 5V, the other end to Analog 4 (gpio36).
+Then connect one end of a 10K resistor from Analog 4 to ground
  */
 }
 
