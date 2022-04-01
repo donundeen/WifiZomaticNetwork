@@ -103,9 +103,11 @@ void onPlantMessageReceived(const OscMessage& m) {
     */
     Serial.println();
 
-    sendToAll("/plantmessage", sendcount);
+  //  sendToAll("/plantmessage", sendcount);
     sendcount++;  
 }
+
+
 
 void setup() {
 
@@ -154,7 +156,8 @@ void setup() {
 
 
   // this listens for messages, sends results to onPlantMessageReceived function
-    OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
+  //  OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
+    OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
     Serial.println("subscribed");
 
 
@@ -165,9 +168,6 @@ int count = 0;
 void loop() {
 
     loop_sensor();
-  /*
-    OscWiFi.update();  // should be called to receive + send osc
-*/
   
     /*
     // just send message 5 times, for testing
@@ -193,16 +193,14 @@ void sendToAll(String channel, int message){
         String fullip = ipprefix+String(rec_ip);
         Serial.print("fullip is " );
         Serial.println(fullip);        
-        sendPlantMessage(fullip, message, 345);
+        sendMessage(fullip, channel, message);
     }
   }
 }
 
-
-void sendPlantMessage(String host, int part1, int part2){
-  Serial.print("sending message to " );
-  Serial.println(host);  
-  OscWiFi.send(host, publish_port, "/plantmessage", part1, part2); // to publish osc  
+void sendMessage(String host, String channel, int part1){
+    Serial.println("sending " + host + channel );
+    OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
 
 void fastblink(int times){
@@ -248,7 +246,7 @@ int fsrReading  = 3;      // the analog reading from the FSR resistor divider
 // when it's in alert mode, if it detects a change in light, it switches to "alert" mode and sends an OSC 'danger' message
 // when it RECEIVES a 'danger' message, it goes into 'search' mode.
 // IOW, it doesn't respond to its OWN danger messages.
-String mode = "wait"; // 'search' or 'alert' or 'wait'
+String mode = "wait"; // 'search' or 'alerting' or 'wait'
 
 /*
  * https://docs.arduino.cc/learn/electronics/servo-motors
@@ -290,7 +288,7 @@ void setup_sensor(){
 Then connect one end of a 10K resistor from Analog 4 to ground
  */
   myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
-  mode = "search";
+ // mode = "search";
 }
 
 void loop_sensor(){
@@ -305,6 +303,10 @@ void loop_sensor(){
   */
   if(mode == "search"){
     seek_light();
+  }else if (mode == "wait"){
+    myservo.write(stopSpeed);  // stop motor
+    OscWiFi.update();  // should be called to receive + send osc
+    detect_danger();
   }
   delay(100);
 }
@@ -334,6 +336,22 @@ void move_servo(){
   myservo.write(speedDir); 
   delay(1000); 
   
+}
+
+int prev_dangervalue = -1;
+int danger_threshold = 100;
+void detect_danger(){
+  int dangervalue = analogRead(fsrAnalogPin);
+  Serial.print(dangervalue);
+  Serial.print(":");
+  Serial.println(prev_dangervalue);
+  if(dangervalue < prev_dangervalue - danger_threshold){
+    Serial.println("DANGER!");
+    mode = "alerting";
+    sendToAll("/danger", 1);
+    mode = "wait"; 
+  }
+  prev_dangervalue = dangervalue;
 }
 
 int read_light(){
@@ -379,4 +397,12 @@ void seek_light(){
     delay(400 + random(100)); // make the timing a little random, to help avoid loops/cycles
   
   }
+}
+
+
+void onDangerMessageReceived(const OscMessage& m) {
+  // danger message received, go into search mode;
+  Serial.println("got danger message!");
+  mode = "search";
+  
 }
