@@ -155,6 +155,8 @@ void setup() {
 
   // this listens for messages, sends results to onPlantMessageReceived function
     OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
+    Serial.println("subscribed");
+
 
   
 }
@@ -274,6 +276,8 @@ Servo myservo;  // create servo object to control a servo
 int stopSpeed = 95;
 
 void setup_sensor(){
+    Serial.println("setup_sensor");
+
 /* A4 / 36 ( 8 up from bottom on long side) - 
  *  this is an analog input A4 and also GPI #36. 
  *  Note it is _not_ an output-capable pin! It uses ADC #1
@@ -285,18 +289,28 @@ void setup_sensor(){
  * Connect one end of photoresistor  to 5V, the other end to Analog 4 (gpio36).
 Then connect one end of a 10K resistor from Analog 4 to ground
  */
-   myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
-
+  myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
+  mode = "search";
 }
 
 void loop_sensor(){
+  //Serial.println("loop_sensor");
+
+  /*
   Serial.println(fsrAnalogPin);
   fsrReading = analogRead(fsrAnalogPin);
   Serial.print("Analog reading = ");
   Serial.println(fsrReading);
   move_servo();
+  */
+  if(mode == "search"){
+    seek_light();
+  }
+  delay(100);
 }
 
+int prev_light = -1;
+int timer = 0;
 
 void move_servo(){
  int speedDir = stopSpeed; // stop?
@@ -327,4 +341,42 @@ int read_light(){
   Serial.print("Analog reading = ");
   Serial.println(fsrReading);
   return lightvalue;
+}
+
+
+int cwmove = stopSpeed - 10;
+int ccwmove = stopSpeed + 10;
+int dir = cwmove; // initial direction
+
+// this function is where the servo seeks a light source
+void seek_light(){
+  Serial.println("seeking");
+  boolean seeking = true;
+  
+  int prev_lightvalue = 100000;
+  while(seeking){  
+    int lightvalue = analogRead(fsrAnalogPin); // get current value
+    Serial.print(lightvalue);
+    Serial.print(":");
+    Serial.println(prev_lightvalue);
+    // compare to previous value
+    // if they are kind of high but close, that means we've found a peak?
+    if(lightvalue > 10 && lightvalue >= prev_lightvalue - 10 && lightvalue <= prev_lightvalue + 10){
+      Serial.println("stopping");
+      seeking = false;
+      mode = "wait"; // set global mode back to wait
+      myservo.write(stopSpeed);  // stop motor
+      break; // exit loop    
+    }
+    else if(lightvalue < prev_lightvalue){
+      Serial.println("toggling direction");
+      dir = (dir == cwmove ? ccwmove : cwmove); // toggle direction
+    }
+    Serial.print("moving");
+    Serial.println(dir);
+    myservo.write(dir);  // stop motor
+    prev_lightvalue = lightvalue;
+    delay(400 + random(100)); // make the timing a little random, to help avoid loops/cycles
+  
+  }
 }
