@@ -236,8 +236,16 @@ void resolveids(){
   Serial.println(thishumanname);
 }
 
+
+/*
+ * A4/36 ( 8 up from bottom on long side) - this is an analog input A4 and also GPI #36. Note it is _not_ an output-capable pin! It uses ADC #1
+*  A3/39 (9 up from bottom on long side)- this is an analog input A3 and also GPI #39. Note it is _not_ an output-capable pin! It uses ADC #1 
+ * 
+ */
 int fsrAnalogPin = A4;
+int fsrAnalogPin2 = A3;
 int fsrReading  = 3;      // the analog reading from the FSR resistor divider
+int fsrReading2  = 3;      // the analog reading from the FSR resistor divider
 
 
 // this plant can move a branch with a directed light detector. 
@@ -269,12 +277,13 @@ String mode = "wait"; // 'search' or 'alerting' or 'wait'
  * 
  */
 int servoPin = A0;
+int servoPin2 = A1;
 Servo myservo;  // create servo object to control a servo
+Servo myservo2;  // create servo object to control a servo
 int stopSpeed = 95;
 
 void pre_setup_sensor(){
   // this runs BEFORE the regular setup.
-  myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
 
 }
 
@@ -294,7 +303,8 @@ void setup_sensor(){
  * Connect one end of photoresistor  to 5V, the other end to Analog 4 (gpio36).
 Then connect one end of a 10K resistor from Analog 4 to ground
  */
-  myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
+  myservo.attach(servoPin);  // attaches the servo on pin servoPin to the servo object
+  myservo2.attach(servoPin2);  // attaches the servo on pin servoPin2 to the servo object
  // mode = "search";
   // set servo stop spee depedning on servo/device
   Serial.println("matching mac " +thisarduinomac);
@@ -306,15 +316,14 @@ Then connect one end of a 10K resistor from Analog 4 to ground
     stopSpeed=90;
     Serial.println(stopSpeed);
   }
-
-  seek_light();
-
-
+  test_move();
+//  seek_light();
 }
 
 void loop_sensor(){
   //Serial.println("loop_sensor");
   //calibrate_servo();
+  test_move();
   if(mode == "search"){
     seek_light();
   }else if (mode == "wait"){
@@ -348,7 +357,7 @@ void detect_danger(){
 int read_light(){
   int lightvalue = analogRead(fsrAnalogPin);
   Serial.print("Analog reading = ");
-  Serial.println(fsrReading);
+  Serial.println(lightvalue);
   return lightvalue;
 }
 
@@ -490,4 +499,87 @@ void calibrate_servo(){
   speedDir= speedDir-1;
   delay(1000);
   
+}
+
+
+
+void test_move(){
+  Serial.println("test_move");
+  int pos = 90;
+  int MIN_SERVO_VALUE = 0;
+  int MAX_SERVO_VALUE = 180;
+
+  int lightvalue = 0;
+  int lightvalue2 = 0;
+  lightvalue = analogRead(fsrAnalogPin);
+  lightvalue2 = analogRead(fsrAnalogPin2);
+  Serial.print("Analog 1 reading = ");
+  Serial.println(lightvalue);
+  Serial.print("Analog 2 reading = ");
+  Serial.println(lightvalue2);
+
+
+  int speedDir = stopSpeed; // stop?
+  Serial.println("stop");
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  speedDir= speedDir+1;
+
+  pos = 90;
+  Serial.println(pos);
+  myservo2.write(pos);
+  delay(1000);
+
+  lightvalue = analogRead(fsrAnalogPin);
+  lightvalue2 = analogRead(fsrAnalogPin2);
+  Serial.print("Analog 1 reading = ");
+  Serial.println(lightvalue);
+  Serial.print("Analog 2 reading = ");
+  Serial.println(lightvalue2);
+
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  speedDir= speedDir+5;
+    
+  pos = 45;
+  Serial.println(pos);
+  myservo2.write(pos);
+  delay(1000);
+
+  lightvalue = analogRead(fsrAnalogPin);
+  lightvalue2 = analogRead(fsrAnalogPin2);
+  Serial.print("Analog 1 reading = ");
+  Serial.println(lightvalue);
+  Serial.print("Analog 2 reading = ");
+  Serial.println(lightvalue2);
+
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  speedDir= speedDir+5;
+
+  pos = 0;
+  Serial.println(pos);
+  myservo2.write(pos);
+  delay(1000);
+
+  lightvalue = analogRead(fsrAnalogPin);
+  lightvalue2 = analogRead(fsrAnalogPin2);
+  Serial.print("Analog 1 reading = ");
+  Serial.println(lightvalue);
+  Serial.print("Analog 2 reading = ");
+  Serial.println(lightvalue2);
+
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  speedDir= speedDir+5;
+
+  pos = 180;
+  Serial.println(pos);
+  myservo2.write(pos);
+  delay(1000);
+
+
+
+  Serial.println("done test_move");
+
 }
