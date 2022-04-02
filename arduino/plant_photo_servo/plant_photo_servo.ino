@@ -29,13 +29,13 @@ const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
 int i; float f; String s;
-int publish_port= 9002;
+int publish_port= 9003;
 int bind_port = 9003;
 
 
 // for ArduinoOSC
 const int recv_port = 9003;
-const int send_port = 55555;
+const int send_port = 9003;
 // send / receive varibales
 
 String arduinomacs[]= { 
@@ -132,7 +132,7 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
-   
+    
 #ifdef ESP_PLATFORM
     WiFi.disconnect(true, true);  // disable wifi, erase ap info
     delay(1000);
