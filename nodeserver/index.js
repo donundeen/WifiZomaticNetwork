@@ -21,11 +21,11 @@ var HOST = config.osc.host;
 var plant1ip = "10.0.0.224";
 
 var plants = {"10.0.0.224":{},
-              "10.0.0.225":{},
               "10.0.0.226":{},
+              "10.0.0.225":{},
               "10.0.0.227":{},
-              "10.0.0.228":{},
               "10.0.0.229":{},
+              "10.0.0.228":{},
               "10.0.0.230":{}
               };
 
@@ -56,14 +56,21 @@ oscServer.on('message', function (msg, info) {
     plants[sourceip] = {info: info};
   }
   var channel = msg[0];
-  var letter = msg[1];
-  var number = msg[2];
-  var command = letter+number;
-  console.log("command " + channel);
+  var value1 = msg[1];
+  var value2 = msg[2];
+  console.log("values " + value1 + " : " +value2);
 // process messaged based on the channel. No rebroadcast.
   switch(channel){
     case "/poop":
       doPoop();
+      sendOSCtoAll(1, "/poop", sourceip);
+      break;
+    case "/danger":
+      // rebroadcast danger message
+      sendOSCtoAll(1, "/danger", sourceip);
+      break;
+    case "/water":
+      console.log("got water " + value1);
       break;
     default:
       console.log("don't understand command channel " + channel);
@@ -75,28 +82,55 @@ oscServer.on('message', function (msg, info) {
 
 
 function runTest(){
-  sendOSCtoAll([201, messageCount], "/plantmessage", false);
+  sendOSCtoAll(1, "/danger", false);
   messageCount++;
 
 }
 
 // need send OSC command
 function sendOSC(ip, message, channel){
-	console.log("sending " + channel + " : " + message + " to " + ip);
-	const client = new Client(ip, 9003);
+	console.log("sending " + channel + " : " + message + " to " + ip +":"+PORT);
+	const client = new Client(ip, PORT);
 //	client.send('/plantmessage', message, () => {
 	client.send(channel, message, () => {
 		client.close();
   });
 }
 
+function recursiveSendOSC(ipindex, ips, message, channel, skipip){
+	if(ipindex >= ips.length){
+		return;
+	}
+	var ip = ips[ipindex];
+        if(skipip == ip){
+		ipindex++;
+                recursiveSendOSC(ipindex, ips, message, channel, skipip);
+		return;
+	}
+	console.log("Recursive sending " + channel + " : " + message + " to " + ip +":"+PORT);
+        const client = new Client(ip, PORT);
+//      client.send('/plantmessage', message, () => {
+        client.send(channel, message, () => {
+                client.close(function(){
+			console.log("close done");
+			ipindex++;
+			recursiveSendOSC(ipindex, ips, message, channel,skipip);
+		});
+	});
+}
+
 function sendOSCtoAll(message, channel, skipip){
   var ips = Object.keys(plants);
+  var index = 0;
+  recursiveSendOSC(index, ips, message, channel, skipip);
+ 
+/*
+  sendOSC(ips[i], message, channel);
   for(var i = 0; i<ips.length; i++){
     if(ips[i] != skipip){
-        sendOSC(ips[i], message, channel);
     }
   }
+*/
 }
 
 
@@ -104,6 +138,9 @@ function doPoop(){
   console.log("farting");
   new Sound().play("/home/pi/WifiZomaticNetwork/audio/fs1.wav");
 }
+
+//sendOSCtoAll(1, "/danger", false);
+
 
 //setInterval(runTest, 5000);
 
