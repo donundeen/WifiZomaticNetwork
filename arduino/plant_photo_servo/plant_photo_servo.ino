@@ -65,7 +65,7 @@ int arduinoips[] = {
   203,
 };
 
-int numplants = 8;
+int numplants = 9;
 
 String humannames[] = { 
   "stick",
@@ -167,7 +167,8 @@ int count = 0;
 void loop() {
 
     loop_sensor();
-  
+    OscWiFi.update();  // should be called to receive + send osc
+
     /*
     // just send message 5 times, for testing
     if(sendcount <= 5 || random(100) < 5){
@@ -281,6 +282,8 @@ void pre_setup_sensor(){
 void setup_sensor(){
     Serial.println("setup_sensor");
     OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
+    OscWiFi.subscribe(recv_port, "/poop", onPoopMessageReceived);
+    OscWiFi.subscribe(recv_port, "/water", onWaterMessageReceived);
     Serial.println("subscribed");
 
 /* A4 / 36 ( 8 up from bottom on long side) - 
@@ -353,17 +356,36 @@ int read_light(){
 }
 
 
-int cwmove = stopSpeed - 10;
-int ccwmove = stopSpeed + 10;
+int moveSpeed = 2; // a poop alert increases this number. It goes down every time it runs seek_light
+
+int waterLevel = 0;
+
+int cwmove = stopSpeed - moveSpeed;
+int ccwmove = stopSpeed + moveSpeed;
 int dir = cwmove; // initial direction
 
 // this function is where the servo seeks a light source
 int cwmove_count = 0;
 int ccwmove_count = 0;
 
+
+
 void seek_light(){
   Serial.println("seeking");
   boolean seeking = true;
+
+  // moveSpeed goe down each time this runs. It goes up when there's a poop
+  moveSpeed = moveSpeed - 1;
+  if(moveSpeed < 1){
+    moveSpeed = 1;
+  }
+  if(moveSpeed > 15){
+    moveSpeed = 15;
+  }
+  
+  cwmove = stopSpeed - moveSpeed;
+  ccwmove = stopSpeed + moveSpeed;
+  
   // move in whichever direction we've moved the least in.
   if(cwmove_count > ccwmove_count){
     dir = ccwmove;
@@ -421,6 +443,19 @@ void onDangerMessageReceived(const OscMessage& m) {
   // danger message received, go into search mode;
   Serial.println("got danger message!");
   mode = "search";
+  
+}
+
+void onWaterMessageReceived(const OscMessage& m) {
+  // danger message received, go into search mode;
+  Serial.println("got water message!");
+  Serial.print(m.arg<int>(0));
+  waterLevel = m.arg<int>(0);
+}
+
+void onPoopMessageReceived(const OscMessage& m) {
+  Serial.println("poop message received");
+  moveSpeed = moveSpeed + 1;
   
 }
 

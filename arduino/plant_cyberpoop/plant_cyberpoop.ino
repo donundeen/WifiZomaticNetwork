@@ -49,13 +49,15 @@ const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
 int i; float f; String s;
-int publish_port= 9002;
-int bind_port = 9003;
+int port = 9002;
+
+int publish_port= port;
+int bind_port = port;
 
 
 // for ArduinoOSC
-const int recv_port = 9003;
-const int send_port = 55555;
+const int recv_port = port;
+const int send_port = port;
 // send / receive varibales
 
 String arduinomacs[]= { 
@@ -82,7 +84,7 @@ int arduinoips[] = {
   203,
 };
 
-int numplants = 8;
+int numplants = 9;
 
 String humannames[] = { 
   "stick",
@@ -183,9 +185,9 @@ int count = 0;
 void loop() {
 
     loop_sensor();
-  /*
+  
     OscWiFi.update();  // should be called to receive + send osc
-*/
+
   
     /*
     // just send message 5 times, for testing
@@ -217,7 +219,7 @@ void sendToAll(String channel, int message){
 }
 
 void sendMessage(String host, String channel, int part1){
-    Serial.println("sending " + host + channel );
+    Serial.println("sending " + host + channel + ":"+publish_port );
     OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
 

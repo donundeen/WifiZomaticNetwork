@@ -316,14 +316,16 @@ Then connect one end of a 10K resistor from Analog 4 to ground
     stopSpeed=90;
     Serial.println(stopSpeed);
   }
-  test_move();
+  test_walk();
+//  test_move();
 //  seek_light();
 }
 
 void loop_sensor(){
   //Serial.println("loop_sensor");
   //calibrate_servo();
-  test_move();
+  test_walk();
+  /*
   if(mode == "search"){
     seek_light();
   }else if (mode == "wait"){
@@ -331,7 +333,9 @@ void loop_sensor(){
     OscWiFi.update();  // should be called to receive + send osc
     detect_danger();
   }
+  
   delay(100);
+  */
 }
 
 int prev_light = -1;
@@ -501,7 +505,18 @@ void calibrate_servo(){
   
 }
 
-
+void test_walk(){
+  Serial.println("walking");
+  int speedDir = stopSpeed; // stop?
+  Serial.println("stop");
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  delay(1000);
+  speedDir = ccwmove;
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  delay(5000);
+}
 
 void test_move(){
   Serial.println("test_move");
