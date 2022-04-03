@@ -56,7 +56,7 @@ String arduinomacs[]= {
 int arduinoips[] = {
   224,
   225,
-  226,
+  226, // swinging tree
   227,
   228, // cyberpoop
   229,
@@ -70,7 +70,7 @@ int numplants = 9;
 String humannames[] = { 
   "stick",
   "pinecone",
-  "dirt",
+  "swingingtree",
   "branch",
   "cyberpoop",
   "leaf",
@@ -217,7 +217,6 @@ void resolveids(){
 }
 
 int fsrAnalogPin = A4;
-int fsrReading  = 3;      // the analog reading from the FSR resistor divider
 
 
 // this plant can move a branch with a directed light detector. 
@@ -314,7 +313,7 @@ int timer = 0;
 int prev_dangervalue = -1;
 int danger_threshold = 100;
 void detect_danger(){
-  int dangervalue = analogRead(fsrAnalogPin);
+  int dangervalue = read_light();
   Serial.print(dangervalue);
   Serial.print(":");
   Serial.println(prev_dangervalue);
@@ -330,7 +329,7 @@ void detect_danger(){
 int read_light(){
   int lightvalue = analogRead(fsrAnalogPin);
   Serial.print("Analog reading = ");
-  Serial.println(fsrReading);
+  Serial.println(lightvalue);
   return lightvalue;
 }
 
@@ -348,76 +347,33 @@ int cwmove_count = 0;
 int ccwmove_count = 0;
 
 
+// this servo has absolute positioning, just set the number 0-180
 
 void seek_light(){
   Serial.println("seeking");
   boolean seeking = true;
 
-  // moveSpeed goe down each time this runs. It goes up when there's a poop
-  moveSpeed = moveSpeed - 1;
-  if(moveSpeed < 1){
-    moveSpeed = 1;
-  }
-  if(moveSpeed > 15){
-    moveSpeed = 15;
-  }
-
-  int mappedWaterLevel = constrain(map(waterLevel, 4095, 1000, 100, 500), 100, 500); // // ranges from 0 (most wet, rare) to around 4095 // most dry
-  int moveTimeBase = mappedWaterLevel;// based on water level. More water = longer moves
-  
-  cwmove = stopSpeed - moveSpeed;
-  ccwmove = stopSpeed + moveSpeed;
-  
-  // move in whichever direction we've moved the least in.
-  if(cwmove_count > ccwmove_count){
-    dir = ccwmove;
-  }else{
-    dir = cwmove;
-  }
-  int prev_lightvalue = 100000;
-  while(seeking){  
-    int lightvalue = analogRead(fsrAnalogPin); // get current value
-    Serial.print(lightvalue);
-    Serial.print(":");
-    Serial.println(prev_lightvalue);
-    // compare to previous value
-    // if they are kind of high but close, that means we've found a peak?
-    if(lightvalue > 10 && lightvalue >= prev_lightvalue - 10 && lightvalue <= prev_lightvalue + 10){
-      Serial.println("stopping");
-      seeking = false;
-      mode = "wait"; // set global mode back to wait
-      myservo.write(stopSpeed);  // stop motor
-      break; // exit loop    
+  int posinc = constrain(map(waterLevel, 4095, 1000, 0, 10), 0, 10); 
+  int posdelay = constrain(map(moveSpeed, 0, 20, 500, 10), 10, 500);
+  int maxlight = 0;
+  int pos = 0;
+  int maxlightpos = pos;
+  myservo.write(pos);  // stop motor
+  delay(250);
+  while(pos < 180){
+    int lightlevel = read_light();
+    if(lightlevel> maxlight){
+      maxlight = lightlevel;
+      maxlightpos = pos;    
     }
-    else if(lightvalue < prev_lightvalue){
-      Serial.println("toggling direction");
-      dir = (dir == cwmove ? ccwmove : cwmove); // toggle direction
-    }
-    Serial.print("moving");
-    Serial.println(dir);
-    myservo.write(dir);  // stop motor
-    prev_lightvalue = lightvalue;
-    // adjust the movetime to prioritize whichever direction we haven't moved in a while
-    // this is ideally to keep it from spinning in circles
-    int movetime = 0;
-    if(dir == cwmove){
-      if(cwmove_count > ccwmove_count){
-        movetime = moveTimeBase - random(100); 
-      }else{
-        movetime = moveTimeBase + random(100);         
-      }
-      cwmove_count += movetime;
-    }else{
-      if(cwmove_count > ccwmove_count){
-        movetime = moveTimeBase + random(100); 
-      }else{
-        movetime = moveTimeBase - random(100);         
-      }
-      ccwmove_count += movetime;     
-    }
-    delay(movetime); // make the timing a little random, to help avoid loops/cycles
-  
+    pos = pos + posinc;
+    myservo.write(pos);  // incerement motor
+    delay(posdelay);    
   }
+  Serial.println("max value : " + String(maxlight) + " at " + String(maxlightpos));
+  myservo.write(pos);  // move to best light
+  prev_dangervalue = -1;  // reset prev_dangervalue so it doesn't keep seeing danger after a move. 
+  mode = "wait";
 }
 
 
@@ -441,73 +397,5 @@ void onWaterMessageReceived(const OscMessage& m) {
 void onPoopMessageReceived(const OscMessage& m) {
   Serial.println("poop message received");
   moveSpeed = moveSpeed + 1;
-  
-}
-
-
-void calibrate_servo(){
-  int speedDir = stopSpeed; // stop?
-  Serial.println("stop");
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+1;
-  delay(2000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+1;
-  delay(1000);
-  speedDir = stopSpeed; 
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir-1;
-  delay(1000);
   
 }
