@@ -168,18 +168,6 @@ void loop() {
 
     loop_sensor();
     OscWiFi.update();  // should be called to receive + send osc
-
-    /*
-    // just send message 5 times, for testing
-    if(sendcount <= 5 || random(100) < 5){
-//      sendPlantMessage(host, count, 456);
-      sendToAll("/plantmessage", sendcount);
-      sendcount++;
-//      OscWiFi.send(host, publish_port, "/plantmessage", count, 456); // to publish osc
-      delay(500);
-    }
-*/
-
 }
 
 void sendToAll(String channel, int message){
@@ -442,8 +430,11 @@ void seek_light(){
 void onDangerMessageReceived(const OscMessage& m) {
   // danger message received, go into search mode;
   Serial.println("got danger message!");
-  mode = "search";
-  
+  if(mode == "wait"){
+    mode = "search";
+  }else{
+    Serial.println("do nothing, not in wait mode");    
+  }
 }
 
 void onWaterMessageReceived(const OscMessage& m) {
