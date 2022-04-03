@@ -58,7 +58,7 @@ int arduinoips[] = {
   225,
   226,
   227,
-  228,
+  228, // cyberpoop
   229,
   230,
   74,
@@ -72,7 +72,7 @@ String humannames[] = {
   "pinecone",
   "dirt",
   "branch",
-  "seedling",
+  "cyberpoop",
   "leaf",
   "root",
   "mothertree",
@@ -84,31 +84,6 @@ String thisarduinomac = "";
 String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
-
-void onPlantMessageReceived(const OscMessage& m) {
-  Serial.println("message received");
-    fastblink(5);
-    Serial.print(m.remoteIP());
-    Serial.print(" ");
-    Serial.print(m.remotePort());
-    Serial.print(" ");
-    Serial.print(m.size());
-    Serial.print(" ");
-    Serial.print(m.address());
-    Serial.print(" ");
-    // be mindful of the number of arguments to expect, and their type
-    Serial.print(m.arg<int>(0));
-    Serial.print(" ");
-    Serial.print(m.arg<int>(1));
-    /*
-    Serial.print(" ");
-    Serial.print(m.arg<String>(2));
-    */
-    Serial.println();
-
-  //  sendToAll("/plantmessage", sendcount);
-    sendcount++;  
-}
 
 
 
@@ -135,24 +110,8 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
-    
-#ifdef ESP_PLATFORM
-    WiFi.disconnect(true, true);  // disable wifi, erase ap info
-    delay(1000);
-    WiFi.mode(WIFI_STA);
-#endif
-
-    WiFi.begin(ssid, pwd);
-    WiFi.config(ip, gateway, subnet);
-    
-    while (WiFi.status() != WL_CONNECTED) {
-        Serial.print(".");
-        fastblink(2);
-//        delay(500);
-    }
-    
-    Serial.print("WiFi connected, IP = ");
-    Serial.println(WiFi.localIP());
+ 
+    connect_wifi();
 
     setup_sensor();
 
@@ -163,11 +122,36 @@ void setup() {
   
 }
 
+void connect_wifi(){
+   if(WiFi.status() != WL_CONNECTED){
+      Serial.println("connecting to wifi");
+#ifdef ESP_PLATFORM
+      WiFi.disconnect(true, true);  // disable wifi, erase ap info
+      delay(1000);
+      WiFi.mode(WIFI_STA);
+#endif
+  
+      WiFi.begin(ssid, pwd);
+      WiFi.config(ip, gateway, subnet);
+      
+      while (WiFi.status() != WL_CONNECTED) {
+          Serial.print(".");
+          fastblink(2);
+  //        delay(500);
+      }
+      
+      Serial.print("WiFi connected, IP = ");
+      Serial.println(WiFi.localIP());
+   }
+  
+}
+
+
 int count = 0;
 void loop() {
-
-    loop_sensor();
+    connect_wifi();
     OscWiFi.update();  // should be called to receive + send osc
+    loop_sensor();
 }
 
 void sendToAll(String channel, int message){
@@ -187,7 +171,15 @@ void sendToAll(String channel, int message){
 }
 
 void sendMessage(String host, String channel, int part1){
-    Serial.println("sending " + host + channel );
+    connect_wifi();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("I'm not connected!");
+    }else{
+      Serial.println("I AM connected!");
+      
+    }
+  
+    Serial.println("sending " + host + channel + ":"+publish_port);
     OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
 

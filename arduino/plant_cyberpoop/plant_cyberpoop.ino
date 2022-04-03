@@ -77,7 +77,7 @@ int arduinoips[] = {
   225,
   226,
   227,
-  228,
+  228, // cyberpoop
   229,
   230,
   74,
@@ -91,7 +91,7 @@ String humannames[] = {
   "pinecone",
   "dirt",
   "branch",
-  "seedling",
+  "cyberpoop",
   "leaf",
   "root",
   "mothertree",
@@ -176,7 +176,7 @@ void setup() {
 
 
   // this listens for messages, sends results to onPlantMessageReceived function
-    OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
+    OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
 
   
 }
@@ -521,4 +521,13 @@ Serial.println(mx + my + mz);
   
   
   delay(100);
+}
+
+
+
+
+void onDangerMessageReceived(const OscMessage& m) {
+  // danger message received, go into search mode;
+  Serial.println("got danger message!");
+
 }
