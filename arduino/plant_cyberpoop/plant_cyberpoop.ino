@@ -49,13 +49,15 @@ const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
 int i; float f; String s;
-int publish_port= 9002;
-int bind_port = 9003;
+int port = 9002;
+
+int publish_port= port;
+int bind_port = port;
 
 
 // for ArduinoOSC
-const int recv_port = 9003;
-const int send_port = 55555;
+const int recv_port = port;
+const int send_port = port;
 // send / receive varibales
 
 String arduinomacs[]= { 
@@ -64,7 +66,8 @@ String arduinomacs[]= {
 "40:F5:20:45:D0:18",
 "C4:DD:57:9C:DC:A4",
 "40:F5:20:45:D0:A4",
-"30:AE:A4:9D:7C:44",
+"C4:DD:57:9C:CA:20",
+"3C:61:05:4A:5F:C0",
 "rpi:mac:address",
 "ap:mac:address",
 };
@@ -74,21 +77,23 @@ int arduinoips[] = {
   225,
   226,
   227,
-  228,
+  228, // cyberpoop
   229,
+  230,
   74,
   203,
 };
 
-int numplants = 7;
+int numplants = 9;
 
 String humannames[] = { 
   "stick",
   "pinecone",
   "dirt",
   "branch",
-  "seedling",
-  "devmodule",
+  "cyberpoop",
+  "leaf",
+  "root",
   "mothertree",
   "accesspoint"
 };
@@ -171,7 +176,7 @@ void setup() {
 
 
   // this listens for messages, sends results to onPlantMessageReceived function
-    OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
+    OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
 
   
 }
@@ -180,9 +185,9 @@ int count = 0;
 void loop() {
 
     loop_sensor();
-  /*
+  
     OscWiFi.update();  // should be called to receive + send osc
-*/
+
   
     /*
     // just send message 5 times, for testing
@@ -214,7 +219,7 @@ void sendToAll(String channel, int message){
 }
 
 void sendMessage(String host, String channel, int part1){
-    Serial.println("sending " + host + channel );
+    Serial.println("sending " + host + channel + ":"+publish_port );
     OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
 
@@ -516,4 +521,13 @@ Serial.println(mx + my + mz);
   
   
   delay(100);
+}
+
+
+
+
+void onDangerMessageReceived(const OscMessage& m) {
+  // danger message received, go into search mode;
+  Serial.println("got danger message!");
+
 }

@@ -58,21 +58,21 @@ int arduinoips[] = {
   225,
   226,
   227,
-  228, // cyberpoop
+  228,
   229,
   230,
   74,
   203,
 };
 
-int numplants = 9;
+int numplants = 8;
 
 String humannames[] = { 
   "stick",
   "pinecone",
   "dirt",
   "branch",
-  "cyberpoop",
+  "seedling",
   "leaf",
   "root",
   "mothertree",
@@ -84,6 +84,31 @@ String thisarduinomac = "";
 String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
+
+void onPlantMessageReceived(const OscMessage& m) {
+  Serial.println("message received");
+    fastblink(5);
+    Serial.print(m.remoteIP());
+    Serial.print(" ");
+    Serial.print(m.remotePort());
+    Serial.print(" ");
+    Serial.print(m.size());
+    Serial.print(" ");
+    Serial.print(m.address());
+    Serial.print(" ");
+    // be mindful of the number of arguments to expect, and their type
+    Serial.print(m.arg<int>(0));
+    Serial.print(" ");
+    Serial.print(m.arg<int>(1));
+    /*
+    Serial.print(" ");
+    Serial.print(m.arg<String>(2));
+    */
+    Serial.println();
+
+  //  sendToAll("/plantmessage", sendcount);
+    sendcount++;  
+}
 
 
 
@@ -110,8 +135,24 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
- 
-    connect_wifi();
+    
+#ifdef ESP_PLATFORM
+    WiFi.disconnect(true, true);  // disable wifi, erase ap info
+    delay(1000);
+    WiFi.mode(WIFI_STA);
+#endif
+
+    WiFi.begin(ssid, pwd);
+    WiFi.config(ip, gateway, subnet);
+    
+    while (WiFi.status() != WL_CONNECTED) {
+        Serial.print(".");
+        fastblink(2);
+//        delay(500);
+    }
+    
+    Serial.print("WiFi connected, IP = ");
+    Serial.println(WiFi.localIP());
 
     setup_sensor();
 
@@ -122,36 +163,22 @@ void setup() {
   
 }
 
-void connect_wifi(){
-   if(WiFi.status() != WL_CONNECTED){
-      Serial.println("connecting to wifi");
-#ifdef ESP_PLATFORM
-      WiFi.disconnect(true, true);  // disable wifi, erase ap info
-      delay(1000);
-      WiFi.mode(WIFI_STA);
-#endif
-  
-      WiFi.begin(ssid, pwd);
-      WiFi.config(ip, gateway, subnet);
-      
-      while (WiFi.status() != WL_CONNECTED) {
-          Serial.print(".");
-          fastblink(2);
-  //        delay(500);
-      }
-      
-      Serial.print("WiFi connected, IP = ");
-      Serial.println(WiFi.localIP());
-   }
-  
-}
-
-
 int count = 0;
 void loop() {
-    connect_wifi();
-    OscWiFi.update();  // should be called to receive + send osc
+
     loop_sensor();
+  
+    /*
+    // just send message 5 times, for testing
+    if(sendcount <= 5 || random(100) < 5){
+//      sendPlantMessage(host, count, 456);
+      sendToAll("/plantmessage", sendcount);
+      sendcount++;
+//      OscWiFi.send(host, publish_port, "/plantmessage", count, 456); // to publish osc
+      delay(500);
+    }
+*/
+
 }
 
 void sendToAll(String channel, int message){
@@ -171,15 +198,7 @@ void sendToAll(String channel, int message){
 }
 
 void sendMessage(String host, String channel, int part1){
-    connect_wifi();
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("I'm not connected!");
-    }else{
-      Serial.println("I AM connected!");
-      
-    }
-  
-    Serial.println("sending " + host + channel + ":"+publish_port);
+    Serial.println("sending " + host + channel );
     OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
 
@@ -217,8 +236,16 @@ void resolveids(){
   Serial.println(thishumanname);
 }
 
+
+/*
+ * A4/36 ( 8 up from bottom on long side) - this is an analog input A4 and also GPI #36. Note it is _not_ an output-capable pin! It uses ADC #1
+*  A3/39 (9 up from bottom on long side)- this is an analog input A3 and also GPI #39. Note it is _not_ an output-capable pin! It uses ADC #1 
+ * 
+ */
 int fsrAnalogPin = A4;
+int fsrAnalogPin2 = A3;
 int fsrReading  = 3;      // the analog reading from the FSR resistor divider
+int fsrReading2  = 3;      // the analog reading from the FSR resistor divider
 
 
 // this plant can move a branch with a directed light detector. 
@@ -250,20 +277,19 @@ String mode = "wait"; // 'search' or 'alerting' or 'wait'
  * 
  */
 int servoPin = A0;
+int servoPin2 = A1;
 Servo myservo;  // create servo object to control a servo
+Servo myservo2;  // create servo object to control a servo
 int stopSpeed = 95;
 
 void pre_setup_sensor(){
   // this runs BEFORE the regular setup.
-  myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
 
 }
 
 void setup_sensor(){
     Serial.println("setup_sensor");
     OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
-    OscWiFi.subscribe(recv_port, "/poop", onPoopMessageReceived);
-    OscWiFi.subscribe(recv_port, "/water", onWaterMessageReceived);
     Serial.println("subscribed");
 
 /* A4 / 36 ( 8 up from bottom on long side) - 
@@ -277,7 +303,8 @@ void setup_sensor(){
  * Connect one end of photoresistor  to 5V, the other end to Analog 4 (gpio36).
 Then connect one end of a 10K resistor from Analog 4 to ground
  */
-  myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
+  myservo.attach(servoPin);  // attaches the servo on pin servoPin to the servo object
+  myservo2.attach(servoPin2);  // attaches the servo on pin servoPin2 to the servo object
  // mode = "search";
   // set servo stop spee depedning on servo/device
   Serial.println("matching mac " +thisarduinomac);
@@ -289,15 +316,16 @@ Then connect one end of a 10K resistor from Analog 4 to ground
     stopSpeed=90;
     Serial.println(stopSpeed);
   }
-
-  seek_light();
-
-
+  test_walk();
+//  test_move();
+//  seek_light();
 }
 
 void loop_sensor(){
   //Serial.println("loop_sensor");
   //calibrate_servo();
+  test_walk();
+  /*
   if(mode == "search"){
     seek_light();
   }else if (mode == "wait"){
@@ -305,7 +333,9 @@ void loop_sensor(){
     OscWiFi.update();  // should be called to receive + send osc
     detect_danger();
   }
+  
   delay(100);
+  */
 }
 
 int prev_light = -1;
@@ -331,41 +361,22 @@ void detect_danger(){
 int read_light(){
   int lightvalue = analogRead(fsrAnalogPin);
   Serial.print("Analog reading = ");
-  Serial.println(fsrReading);
+  Serial.println(lightvalue);
   return lightvalue;
 }
 
 
-int moveSpeed = 2; // a poop alert increases this number. It goes down every time it runs seek_light
-
-int waterLevel = 0;
-
-int cwmove = stopSpeed - moveSpeed;
-int ccwmove = stopSpeed + moveSpeed;
+int cwmove = stopSpeed - 10;
+int ccwmove = stopSpeed + 10;
 int dir = cwmove; // initial direction
 
 // this function is where the servo seeks a light source
 int cwmove_count = 0;
 int ccwmove_count = 0;
 
-
-
 void seek_light(){
   Serial.println("seeking");
   boolean seeking = true;
-
-  // moveSpeed goe down each time this runs. It goes up when there's a poop
-  moveSpeed = moveSpeed - 1;
-  if(moveSpeed < 1){
-    moveSpeed = 1;
-  }
-  if(moveSpeed > 15){
-    moveSpeed = 15;
-  }
-  
-  cwmove = stopSpeed - moveSpeed;
-  ccwmove = stopSpeed + moveSpeed;
-  
   // move in whichever direction we've moved the least in.
   if(cwmove_count > ccwmove_count){
     dir = ccwmove;
@@ -422,23 +433,7 @@ void seek_light(){
 void onDangerMessageReceived(const OscMessage& m) {
   // danger message received, go into search mode;
   Serial.println("got danger message!");
-  if(mode == "wait"){
-    mode = "search";
-  }else{
-    Serial.println("do nothing, not in wait mode");    
-  }
-}
-
-void onWaterMessageReceived(const OscMessage& m) {
-  // danger message received, go into search mode;
-  Serial.println("got water message!");
-  Serial.print(m.arg<int>(0));
-  waterLevel = m.arg<int>(0);
-}
-
-void onPoopMessageReceived(const OscMessage& m) {
-  Serial.println("poop message received");
-  moveSpeed = moveSpeed + 1;
+  mode = "search";
   
 }
 
@@ -508,4 +503,98 @@ void calibrate_servo(){
   speedDir= speedDir-1;
   delay(1000);
   
+}
+
+void test_walk(){
+  Serial.println("walking");
+  int speedDir = stopSpeed; // stop?
+  Serial.println("stop");
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  delay(1000);
+  speedDir = ccwmove;
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  delay(5000);
+}
+
+void test_move(){
+  Serial.println("test_move");
+  int pos = 90;
+  int MIN_SERVO_VALUE = 0;
+  int MAX_SERVO_VALUE = 180;
+
+  int lightvalue = 0;
+  int lightvalue2 = 0;
+  lightvalue = analogRead(fsrAnalogPin);
+  lightvalue2 = analogRead(fsrAnalogPin2);
+  Serial.print("Analog 1 reading = ");
+  Serial.println(lightvalue);
+  Serial.print("Analog 2 reading = ");
+  Serial.println(lightvalue2);
+
+
+  int speedDir = stopSpeed; // stop?
+  Serial.println("stop");
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  speedDir= speedDir+1;
+
+  pos = 90;
+  Serial.println(pos);
+  myservo2.write(pos);
+  delay(1000);
+
+  lightvalue = analogRead(fsrAnalogPin);
+  lightvalue2 = analogRead(fsrAnalogPin2);
+  Serial.print("Analog 1 reading = ");
+  Serial.println(lightvalue);
+  Serial.print("Analog 2 reading = ");
+  Serial.println(lightvalue2);
+
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  speedDir= speedDir+5;
+    
+  pos = 45;
+  Serial.println(pos);
+  myservo2.write(pos);
+  delay(1000);
+
+  lightvalue = analogRead(fsrAnalogPin);
+  lightvalue2 = analogRead(fsrAnalogPin2);
+  Serial.print("Analog 1 reading = ");
+  Serial.println(lightvalue);
+  Serial.print("Analog 2 reading = ");
+  Serial.println(lightvalue2);
+
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  speedDir= speedDir+5;
+
+  pos = 0;
+  Serial.println(pos);
+  myservo2.write(pos);
+  delay(1000);
+
+  lightvalue = analogRead(fsrAnalogPin);
+  lightvalue2 = analogRead(fsrAnalogPin2);
+  Serial.print("Analog 1 reading = ");
+  Serial.println(lightvalue);
+  Serial.print("Analog 2 reading = ");
+  Serial.println(lightvalue2);
+
+  Serial.println(speedDir);
+  myservo.write(speedDir);
+  speedDir= speedDir+5;
+
+  pos = 180;
+  Serial.println(pos);
+  myservo2.write(pos);
+  delay(1000);
+
+
+
+  Serial.println("done test_move");
+
 }
