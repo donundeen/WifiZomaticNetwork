@@ -70,7 +70,7 @@ String humannames[] = {
   "dirt",
   "branch",
   "cyberpoop",
-  "leaf",
+  "barkwalker",
   "root",
   "mothertree",
   "accesspoint"

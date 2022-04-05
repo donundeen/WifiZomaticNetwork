@@ -90,6 +90,10 @@ int sendcount = 0;
 void setup() {
 
     Serial.begin(115200);
+
+    float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
+    Serial.println("-+-+-+-+-+-+- battery level is " + String (batteryLevel));
+
     
     pre_setup_sensor();
 
@@ -250,6 +254,7 @@ String mode = "wait"; // 'search' or 'alerting' or 'wait'
 int servoPin = A0;
 Servo myservo;  // create servo object to control a servo
 int stopSpeed = 95;
+int pos = 90; // start pos in the middle
 
 void pre_setup_sensor(){
   // this runs BEFORE the regular setup.
@@ -279,18 +284,8 @@ Then connect one end of a 10K resistor from Analog 4 to ground
  // mode = "search";
   // set servo stop spee depedning on servo/device
   Serial.println("matching mac " +thisarduinomac);
-  if( thisarduinomac == "40:F5:20:45:D5:14"){
-    stopSpeed=92;
-    Serial.println(stopSpeed);
-  }
-  if( thisarduinomac == "C4:DD:57:9C:DC:A4"){
-    stopSpeed=90;
-    Serial.println(stopSpeed);
-  }
-
   seek_light();
-
-
+  
 }
 
 void loop_sensor(){
@@ -299,7 +294,6 @@ void loop_sensor(){
   if(mode == "search"){
     seek_light();
   }else if (mode == "wait"){
-    myservo.write(stopSpeed);  // stop motor
     OscWiFi.update();  // should be called to receive + send osc
     detect_danger();
   }
@@ -309,18 +303,24 @@ void loop_sensor(){
 int prev_light = -1;
 int timer = 0;
 
-
 int prev_dangervalue = -1;
-int danger_threshold = 100;
+int danger_threshold = 150;
+int readssincedanger = 0; // lets do a few reads before sending danger again.
 void detect_danger(){
   int dangervalue = read_light();
+  readssincedanger++;
+
   Serial.print(dangervalue);
   Serial.print(":");
   Serial.println(prev_dangervalue);
-  if(dangervalue < prev_dangervalue - danger_threshold){
+  if(readssincedanger > 5 && dangervalue < prev_dangervalue - danger_threshold){
     Serial.println("DANGER!");
     mode = "alerting";
+ //   jerk_branch();
     sendToAll("/danger", 1);
+    prev_dangervalue = -1;
+    readssincedanger = 0;   // lets do a few reads before sending danger again. 
+    delay(1000);
     mode = "wait"; 
   }
   prev_dangervalue = dangervalue;
@@ -335,7 +335,6 @@ int read_light(){
 
 
 int moveSpeed = 4; // a poop alert increases this number. It goes down every time it runs seek_light
-
 int waterLevel = 2000; // ranges from 0 (most wet, rare) to around 4095 // most dry
 
 int cwmove = stopSpeed - moveSpeed;
@@ -356,7 +355,7 @@ void seek_light(){
   int posinc = constrain(map(waterLevel, 4095, 1000, 0, 10), 0, 10); 
   int posdelay = constrain(map(moveSpeed, 0, 20, 500, 10), 10, 500);
   int maxlight = 0;
-  int pos = 0;
+  pos = 0;
   int maxlightpos = pos;
   myservo.write(pos);  // stop motor
   delay(250);
@@ -371,8 +370,10 @@ void seek_light(){
     delay(posdelay);    
   }
   Serial.println("max value : " + String(maxlight) + " at " + String(maxlightpos));
+  pos = maxlightpos;
   myservo.write(pos);  // move to best light
   prev_dangervalue = -1;  // reset prev_dangervalue so it doesn't keep seeing danger after a move. 
+  delay(1000);
   mode = "wait";
 }
 
@@ -397,5 +398,17 @@ void onWaterMessageReceived(const OscMessage& m) {
 void onPoopMessageReceived(const OscMessage& m) {
   Serial.println("poop message received");
   moveSpeed = moveSpeed + 1;
-  
+  jerk_branch(); 
+}
+
+
+void jerk_branch(){
+  // a little reaction jerk, so we can see when an important message came in (like a poop)
+  int leftpos = pos - 10;
+  int rightpos = pos + 10;
+  myservo.write(leftpos);  // move to best light
+  delay(250);
+  myservo.write(rightpos);  // move to best light
+  delay(250);
+  myservo.write(pos);  // move to best light
 }

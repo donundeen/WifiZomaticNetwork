@@ -56,23 +56,23 @@ String arduinomacs[]= {
 int arduinoips[] = {
   224,
   225,
-  226,
+  226, // swinging tree
   227,
-  228,
+  228, // cyberpoop
   229,
   230,
   74,
   203,
 };
 
-int numplants = 8;
+int numplants = 9;
 
 String humannames[] = { 
   "stick",
   "pinecone",
-  "dirt",
+  "swingingtree",
   "branch",
-  "seedling",
+  "cyberpoop",
   "leaf",
   "root",
   "mothertree",
@@ -85,36 +85,15 @@ String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
 
-void onPlantMessageReceived(const OscMessage& m) {
-  Serial.println("message received");
-    fastblink(5);
-    Serial.print(m.remoteIP());
-    Serial.print(" ");
-    Serial.print(m.remotePort());
-    Serial.print(" ");
-    Serial.print(m.size());
-    Serial.print(" ");
-    Serial.print(m.address());
-    Serial.print(" ");
-    // be mindful of the number of arguments to expect, and their type
-    Serial.print(m.arg<int>(0));
-    Serial.print(" ");
-    Serial.print(m.arg<int>(1));
-    /*
-    Serial.print(" ");
-    Serial.print(m.arg<String>(2));
-    */
-    Serial.println();
-
-  //  sendToAll("/plantmessage", sendcount);
-    sendcount++;  
-}
-
-
 
 void setup() {
 
     Serial.begin(115200);
+
+    float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
+    Serial.println("-+-+-+-+-+-+- battery level is " + String (batteryLevel));
+
+   
     
     pre_setup_sensor();
 
@@ -135,24 +114,9 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
-    
-#ifdef ESP_PLATFORM
-    WiFi.disconnect(true, true);  // disable wifi, erase ap info
-    delay(1000);
-    WiFi.mode(WIFI_STA);
-#endif
+  
+    connect_wifi();
 
-    WiFi.begin(ssid, pwd);
-    WiFi.config(ip, gateway, subnet);
-    
-    while (WiFi.status() != WL_CONNECTED) {
-        Serial.print(".");
-        fastblink(2);
-//        delay(500);
-    }
-    
-    Serial.print("WiFi connected, IP = ");
-    Serial.println(WiFi.localIP());
 
     setup_sensor();
 
@@ -163,21 +127,38 @@ void setup() {
   
 }
 
+
+void connect_wifi(){
+   if(WiFi.status() != WL_CONNECTED){
+      Serial.println("connecting to wifi");
+#ifdef ESP_PLATFORM
+      WiFi.disconnect(true, true);  // disable wifi, erase ap info
+      delay(1000);
+      WiFi.mode(WIFI_STA);
+#endif
+  
+      WiFi.begin(ssid, pwd);
+      WiFi.config(ip, gateway, subnet);
+      
+      while (WiFi.status() != WL_CONNECTED) {
+          Serial.print(".");
+          fastblink(2);
+  //        delay(500);
+      }
+      
+      Serial.print("WiFi connected, IP = ");
+      Serial.println(WiFi.localIP());
+   }
+  
+}
+
 int count = 0;
 void loop() {
 
+    connect_wifi();
+    OscWiFi.update();  // should be called to receive + send osc
     loop_sensor();
   
-    /*
-    // just send message 5 times, for testing
-    if(sendcount <= 5 || random(100) < 5){
-//      sendPlantMessage(host, count, 456);
-      sendToAll("/plantmessage", sendcount);
-      sendcount++;
-//      OscWiFi.send(host, publish_port, "/plantmessage", count, 456); // to publish osc
-      delay(500);
-    }
-*/
 
 }
 
@@ -198,7 +179,14 @@ void sendToAll(String channel, int message){
 }
 
 void sendMessage(String host, String channel, int part1){
-    Serial.println("sending " + host + channel );
+    connect_wifi();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("I'm not connected!");
+    }else{
+      Serial.println("I AM connected!");
+      
+    }
+    Serial.println("sending " + host + channel + ":"+publish_port);
     OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
 
@@ -280,7 +268,8 @@ int servoPin = A0;
 int servoPin2 = A1;
 Servo myservo;  // create servo object to control a servo
 Servo myservo2;  // create servo object to control a servo
-int stopSpeed = 95;
+int stopSpeed = 97;
+int stopSpeed2 = 95;
 
 void pre_setup_sensor(){
   // this runs BEFORE the regular setup.
@@ -308,6 +297,7 @@ Then connect one end of a 10K resistor from Analog 4 to ground
  // mode = "search";
   // set servo stop spee depedning on servo/device
   Serial.println("matching mac " +thisarduinomac);
+  /*
   if( thisarduinomac == "40:F5:20:45:D5:14"){
     stopSpeed=92;
     Serial.println(stopSpeed);
@@ -316,6 +306,7 @@ Then connect one end of a 10K resistor from Analog 4 to ground
     stopSpeed=90;
     Serial.println(stopSpeed);
   }
+  */
   test_walk();
 //  test_move();
 //  seek_light();
@@ -505,95 +496,61 @@ void calibrate_servo(){
   
 }
 
-void test_walk(){
-  Serial.println("walking");
-  int speedDir = stopSpeed; // stop?
-  Serial.println("stop");
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  delay(1000);
-  speedDir = ccwmove;
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  delay(5000);
-}
+int stopInc = 0;
+int slowWalk = 3;
+int fastWalk = 8;
+int slowBack = -8;
+int fastBack = -10;
 
-void test_move(){
+void test_walk(){
   Serial.println("test_move");
   int pos = 90;
   int MIN_SERVO_VALUE = 0;
   int MAX_SERVO_VALUE = 180;
 
-  int lightvalue = 0;
-  int lightvalue2 = 0;
-  lightvalue = analogRead(fsrAnalogPin);
-  lightvalue2 = analogRead(fsrAnalogPin2);
-  Serial.print("Analog 1 reading = ");
-  Serial.println(lightvalue);
-  Serial.print("Analog 2 reading = ");
-  Serial.println(lightvalue2);
-
-
-  int speedDir = stopSpeed; // stop?
+  int speed1 = stopSpeed; // stop?
+  int speed2 = stopSpeed2;
   Serial.println("stop");
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+1;
+  Serial.println("speeds: " + String(speed1) + ": " + String(speed2));
+  myservo.write(speed1);
+  myservo2.write(speed2);
+  delay(3000);
 
-  pos = 90;
-  Serial.println(pos);
-  myservo2.write(pos);
-  delay(1000);
+  speed1 = stopSpeed+slowWalk;
+  speed2 = stopSpeed2+slowWalk;
+  Serial.println("slow speeds: " + String(speed1) + ": " + String(speed2));
+  myservo.write(speed1);
+  myservo2.write(speed2);
+  delay(3000);
+  
+  speed1 = stopSpeed+fastWalk;
+  speed2 = stopSpeed2+fastWalk;
+  Serial.println("fast speeds: " + String(speed1) + ": " + String(speed2));
+  myservo.write(speed1);
+  myservo2.write(speed2);
+  delay(3000);
 
-  lightvalue = analogRead(fsrAnalogPin);
-  lightvalue2 = analogRead(fsrAnalogPin2);
-  Serial.print("Analog 1 reading = ");
-  Serial.println(lightvalue);
-  Serial.print("Analog 2 reading = ");
-  Serial.println(lightvalue2);
+  speed1 = stopSpeed; // stop?
+  speed2 = stopSpeed2;
+  Serial.println("stop");
+  Serial.println("speeds: " + String(speed1) + ": " + String(speed2));
+  myservo.write(speed1);
+  myservo2.write(speed2);
+  delay(3000);
 
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+5;
-    
-  pos = 45;
-  Serial.println(pos);
-  myservo2.write(pos);
-  delay(1000);
+  speed1 = stopSpeed+slowBack;
+  speed2 = stopSpeed2+slowBack;
+  Serial.println("slow back speeds: " + String(speed1) + ": " + String(speed2));
+  myservo.write(speed1);
+  myservo2.write(speed2);
+  delay(3000);
 
-  lightvalue = analogRead(fsrAnalogPin);
-  lightvalue2 = analogRead(fsrAnalogPin2);
-  Serial.print("Analog 1 reading = ");
-  Serial.println(lightvalue);
-  Serial.print("Analog 2 reading = ");
-  Serial.println(lightvalue2);
-
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+5;
-
-  pos = 0;
-  Serial.println(pos);
-  myservo2.write(pos);
-  delay(1000);
-
-  lightvalue = analogRead(fsrAnalogPin);
-  lightvalue2 = analogRead(fsrAnalogPin2);
-  Serial.print("Analog 1 reading = ");
-  Serial.println(lightvalue);
-  Serial.print("Analog 2 reading = ");
-  Serial.println(lightvalue2);
-
-  Serial.println(speedDir);
-  myservo.write(speedDir);
-  speedDir= speedDir+5;
-
-  pos = 180;
-  Serial.println(pos);
-  myservo2.write(pos);
-  delay(1000);
-
-
+  speed1 = stopSpeed+fastBack;
+  speed2 = stopSpeed2+fastBack;
+  Serial.println("fast back speeds: " + String(speed1) + ": " + String(speed2));
+  myservo.write(speed1);
+  myservo2.write(speed2);
+  delay(3000);
 
   Serial.println("done test_move");
 

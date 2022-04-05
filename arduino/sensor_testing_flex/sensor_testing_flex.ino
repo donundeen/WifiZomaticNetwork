@@ -28,14 +28,17 @@ const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
 int i; float f; String s;
-int publish_port= 9002;
-int bind_port = 9003;
+
+int port = 9002;
+
+int publish_port= port;
+int bind_port = port;
 
 
 // for ArduinoOSC
-const int recv_port = 9003;
-const int send_port = 55555;
-// send / receive varibales
+const int recv_port = port;
+const int send_port = port;
+// send / receive variables
 
 String arduinomacs[]= { 
 "40:F5:20:44:B1:3C",
@@ -43,7 +46,8 @@ String arduinomacs[]= {
 "40:F5:20:45:D0:18",
 "C4:DD:57:9C:DC:A4",
 "40:F5:20:45:D0:A4",
-"30:AE:A4:9D:7C:44",
+"C4:DD:57:9C:CA:20",
+"3C:61:05:4A:5F:C0",
 "rpi:mac:address",
 "ap:mac:address",
 };
@@ -51,23 +55,25 @@ String arduinomacs[]= {
 int arduinoips[] = {
   224,
   225,
-  226,
+  226, // swinging tree
   227,
-  228,
+  228, // cyberpoop
   229,
+  230,
   74,
   203,
 };
 
-int numplants = 7;
+int numplants = 9;
 
 String humannames[] = { 
   "stick",
   "pinecone",
-  "dirt",
+  "swingingtree",
   "branch",
-  "seedling",
-  "devmodule",
+  "cyberpoop",
+  "leaf",
+  "root",
   "mothertree",
   "accesspoint"
 };
@@ -78,36 +84,17 @@ String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
 
-void onPlantMessageReceived(const OscMessage& m) {
-  Serial.println("message received");
-    fastblink(5);
-    Serial.print(m.remoteIP());
-    Serial.print(" ");
-    Serial.print(m.remotePort());
-    Serial.print(" ");
-    Serial.print(m.size());
-    Serial.print(" ");
-    Serial.print(m.address());
-    Serial.print(" ");
-    // be mindful of the number of arguments to expect, and their type
-    Serial.print(m.arg<int>(0));
-    Serial.print(" ");
-    Serial.print(m.arg<int>(1));
-    /*
-    Serial.print(" ");
-    Serial.print(m.arg<String>(2));
-    */
-    Serial.println();
-
-    sendToAll("/plantmessage", sendcount);
-    sendcount++;  
-}
 
 void setup() {
 
     Serial.begin(115200);
+    
+    pre_setup_sensor();
 
-    setup_sensor();
+    float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
+    Serial.println("battery level is " + String (batteryLevel));
+    Serial.println((float)analogRead(A13));
+    Serial.println((float)analogRead(A13) / 4095.0);
 
     Serial.println(LED_BUILTIN);
     Serial.println(A8);
@@ -126,54 +113,49 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
-   
-#ifdef ESP_PLATFORM
-    WiFi.disconnect(true, true);  // disable wifi, erase ap info
-    delay(1000);
-    WiFi.mode(WIFI_STA);
-#endif
+ 
+    connect_wifi();
 
-    WiFi.begin(ssid, pwd);
-    WiFi.config(ip, gateway, subnet);
-    
-    while (WiFi.status() != WL_CONNECTED) {
-        Serial.print(".");
-        fastblink(2);
-//        delay(500);
-    }
-    
-    Serial.print("WiFi connected, IP = ");
-    Serial.println(WiFi.localIP());
+    setup_sensor();
+
 
     // publish osc messages (default publish rate = 30 [Hz])
-
-
-
   // this listens for messages, sends results to onPlantMessageReceived function
-    OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
-
+  //  OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
   
 }
 
+
+void connect_wifi(){
+   if(WiFi.status() != WL_CONNECTED){
+      Serial.println("connecting to wifi");
+#ifdef ESP_PLATFORM
+      WiFi.disconnect(true, true);  // disable wifi, erase ap info
+      delay(1000);
+      WiFi.mode(WIFI_STA);
+#endif
+  
+      WiFi.begin(ssid, pwd);
+      WiFi.config(ip, gateway, subnet);
+      
+      while (WiFi.status() != WL_CONNECTED) {
+          Serial.print(".");
+          fastblink(2);
+  //        delay(500);
+      }
+      
+      Serial.print("WiFi connected, IP = ");
+      Serial.println(WiFi.localIP());
+   }
+  
+}
+
+
 int count = 0;
 void loop() {
-
-    loop_sensor();
-  /*
+    connect_wifi();
     OscWiFi.update();  // should be called to receive + send osc
-*/
-  
-    /*
-    // just send message 5 times, for testing
-    if(sendcount <= 5 || random(100) < 5){
-//      sendPlantMessage(host, count, 456);
-      sendToAll("/plantmessage", sendcount);
-      sendcount++;
-//      OscWiFi.send(host, publish_port, "/plantmessage", count, 456); // to publish osc
-      delay(500);
-    }
-*/
-
+    loop_sensor();
 }
 
 void sendToAll(String channel, int message){
@@ -187,16 +169,20 @@ void sendToAll(String channel, int message){
         String fullip = ipprefix+String(rec_ip);
         Serial.print("fullip is " );
         Serial.println(fullip);        
-        sendPlantMessage(fullip, message, 345);
+        sendMessage(fullip, channel, message);
     }
   }
 }
 
-
-void sendPlantMessage(String host, int part1, int part2){
-  Serial.print("sending message to " );
-  Serial.println(host);  
-  OscWiFi.send(host, publish_port, "/plantmessage", part1, part2); // to publish osc  
+void sendMessage(String host, String channel, int part1){
+    connect_wifi();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("I'm not connected!");
+    }else{
+      Serial.println("I AM connected!");
+    }
+    Serial.println("sending " + host + channel + ":"+publish_port);
+    OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
 
 void fastblink(int times){
@@ -236,7 +222,15 @@ void resolveids(){
 int fsrAnalogPin = A4;
 int fsrReading  = 3;      // the analog reading from the FSR resistor divider
 
+void pre_setup_sensor(){
+
+  
+}
+
 void setup_sensor(){
+
+  // check battery level
+  
 /* A4 / 36 ( 8 up from bottom on long side) - 
  *  this is an analog input A4 and also GPI #36. 
  *  Note it is _not_ an output-capable pin! It uses ADC #1
@@ -247,14 +241,27 @@ void setup_sensor(){
 /*
  * Connect one end of Flex  to 5V, the other end to Analog 8.
 Then connect one end of a 10K resistor from Analog 8 to ground
+range when unflexed is around 1085 to 1157
+heavily flexed is around 800
  */
 }
 
+
+
+int minFlex = 10000;
+int maxFlex = 0;
 void loop_sensor(){
   Serial.println(fsrAnalogPin);
   fsrReading = analogRead(fsrAnalogPin);
+  if(fsrReading > maxFlex){
+    maxFlex = fsrReading;
+  }
+  if(fsrReading < minFlex){
+    minFlex = fsrReading;
+  }
   Serial.print("Analog reading = ");
   Serial.println(fsrReading);
+  Serial.println(String(minFlex)+":"+String(maxFlex));
   delay(500);
 
 }
