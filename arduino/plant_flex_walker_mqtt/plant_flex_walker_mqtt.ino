@@ -4,13 +4,18 @@
  * ESP32 Adruino -> ESP32 Dev Module
  */
 
+#include <ESP32Servo.h>
+
+
 /*#include <Arduino.h>
 #include <WiFi.h>
 */
-#include <ArduinoOSCWiFi.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
 // #include <ArduinoOSC.h> // you can use this if your borad supports only WiFi or Ethernet
-#include <ESP32Servo.h>
 
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 
 // WiFi stuff
@@ -21,25 +26,14 @@
 const char* ssid = "log.local";
 const char* pwd = "";
 //const char* host = "10.0.0.74"; // rpi when on log.local
-const char* host = "10.0.0.225"; // what you're sending messages TO
+const char* host = "10.0.0.203"; // what you're sending messages TO
 
 //const IPAddress ip(10, 0, 0, 225);
 IPAddress ip;  // THIS device's IP  (need to tie to consistent mac addresses, with a table)
 const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
-int i; float f; String s;
-
-int port = 9002;
-
-int publish_port= port;
-int bind_port = port;
-
-
-// for ArduinoOSC
-const int recv_port = port;
-const int send_port = port;
-// send / receive variables
+int port = 1883;
 
 String arduinomacs[]= { 
 "40:F5:20:44:B1:3C",
@@ -56,7 +50,7 @@ String arduinomacs[]= {
 int arduinoips[] = {
   224,
   225,
-  226, // swinging tree
+  226,
   227,
   228, // cyberpoop
   229,
@@ -70,10 +64,10 @@ int numplants = 9;
 String humannames[] = { 
   "stick",
   "pinecone",
-  "swingingtree",
+  "dirt",
   "branch",
   "cyberpoop",
-  "barkcycle",
+  "leaf",
   "root",
   "mothertree",
   "accesspoint"
@@ -85,17 +79,12 @@ String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
 
-
 void setup() {
 
     Serial.begin(115200);
 
     float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
     Serial.println("-+-+-+-+-+-+- battery level is " + String (batteryLevel));
-
-   
-    
-    pre_setup_sensor();
 
     Serial.println(LED_BUILTIN);
     Serial.println(A8);
@@ -114,19 +103,21 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
-  
+   
     connect_wifi();
 
+    setup_mqtt();
 
     setup_sensor();
 
-
-    // publish osc messages (default publish rate = 30 [Hz])
-  // this listens for messages, sends results to onPlantMessageReceived function
-  //  OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
   
 }
 
+
+void setup_mqtt(){
+  client.setServer(host, port);
+  client.setCallback(callback);
+}
 
 void connect_wifi(){
    if(WiFi.status() != WL_CONNECTED){
@@ -152,42 +143,66 @@ void connect_wifi(){
   
 }
 
-int count = 0;
-void loop() {
-
-    connect_wifi();
-    OscWiFi.update();  // should be called to receive + send osc
-    loop_sensor();
+// beware of returning messages that were just sent.
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
   
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }
+  Serial.println();
 
+  // Feel free to add more if statements to control more GPIOs with MQTT
+
+  // If a message is received on the topic esp32/output, you check if the message is either "on" or "off". 
+  // Changes the output state according to the message
+
+  sensor_sub_callback(String(topic), messageTemp);
+  
 }
 
-void sendToAll(String channel, int message){
-  Serial.print("size is " );
-  Serial.println(sizeof(arduinoips));
-  for (int i = 0; i< numplants; i++){
-    int rec_ip = arduinoips[i];
-    Serial.print("rec_ip is " );
-    Serial.println(rec_ip);
-    if(rec_ip != thisarduinoip){
-        String fullip = ipprefix+String(rec_ip);
-        Serial.print("fullip is " );
-        Serial.println(fullip);        
-        sendMessage(fullip, channel, message);
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("ESP8266Client")) {
+      Serial.println("connected");
+      // Subscribe
+      setup_subs();
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      fastblink(4);    
+      delay(4000);
     }
   }
 }
 
-void sendMessage(String host, String channel, int part1){
+int count = 0;
+void loop() {
     connect_wifi();
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("I'm not connected!");
-    }else{
-      Serial.println("I AM connected!");
-      
-    }
-    Serial.println("sending " + host + channel + ":"+publish_port);
-    OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
+    if (!client.connected()) {
+      reconnect();
+    }    
+    client.loop();
+
+    loop_sensor();
+}
+
+
+void sendMessage(char* topic, int part1){
+    connect_wifi();  
+    Serial.println("sending " + String(topic) + ":"+String(part1) );
+    char buf[5];
+    sprintf(buf, "%04i", part1);
+    client.publish(topic, buf);
 }
 
 void fastblink(int times){
@@ -295,11 +310,32 @@ void pre_setup_sensor(){
 
 }
 
+void setup_subs(){
+    client.subscribe("/poop");
+    client.subscribe("/danger");
+}
+
+
+void onPoopMessageReceived(String message) {
+  Serial.println("poop message received!");
+  // increase poop value
+  poopSpeedPlus = constrain(poopSpeedPlus + 1, 0, 12);
+}
+
+
+
+void sensor_sub_callback(String topic, String message){
+  if (topic == "/poop") {
+    onPoopMessageReceived(message);
+  }
+  else if(topic == "/danger"){
+    onDangerMessageReceived(message);
+  }
+}
+
 void setup_sensor(){
     Serial.println("setup_sensor");
-    OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
-    OscWiFi.subscribe(recv_port, "/water", onWaterMessageReceived);
-    OscWiFi.subscribe(recv_port, "/poop", onPoopMessageReceived);
+    
     Serial.println("subscribed");
 
 /* A4 / 36 ( 8 up from bottom on long side) - 
@@ -337,16 +373,7 @@ Then connect one end of a 10K resistor from Analog 4 to ground
 void loop_sensor(){
   //Serial.println("loop_sensor");
   //calibrate_servo();
-  read_flex();
-  /*
-  if(mode == "search"){
-    seek_light();
-  }else if (mode == "wait"){
-    myservo.write(stopSpeed);  // stop motor
-    OscWiFi.update();  // should be called to receive + send osc
-    detect_danger();
-  }
-  */
+
   delay(100);
   
 }
@@ -376,7 +403,7 @@ so trigger at 200
 
  */
 
-
+int selfDangers = 0;
 void read_flex(){
   redReading = analogRead(redFlexPin);
 //  Serial.print("Red Analog reading = ");
@@ -388,12 +415,14 @@ void read_flex(){
 
   if(!redTriggered && redReading < redTrigger){
     redTriggered = true;
-    sendToAll("/danger", 1);
+    selfDangers++;
+    sendMessage("/danger", 1);
     moveBlack(); // move towards black
   }
   if(!blackTriggered && blackReading < blackTrigger){
     blackTriggered = true;
-    sendToAll("/danger", 1);    
+    selfDangers++;
+    sendMessage("/danger", 1);    
     moveRed(); // move towards red
   }
   if(blackTriggered && blackReading > blackTrigger){
@@ -405,19 +434,14 @@ void read_flex(){
 
 }
 
-/*
-int cwmove = stopSpeed - 10;
-int ccwmove = stopSpeed + 10;
-int dir = cwmove; // initial direction
-
-// this function is where the servo seeks a light source
-int cwmove_count = 0;
-int ccwmove_count = 0;
-*/
 
 
-void onDangerMessageReceived(const OscMessage& m) {
+void onDangerMessageReceived(String message) {
   // danger message received, reverse direction;
+  if(selfDangers > 0){ // we probably sent this message
+    selfDangers--;
+    return;
+  }
   Serial.println("got danger message!");
 
   // reduce poop value:
@@ -430,14 +454,8 @@ void onDangerMessageReceived(const OscMessage& m) {
   }
 }
 
-void onWaterMessageReceived(const OscMessage& m) {
+void onWaterMessageReceived(String message) {
 // nothing planned here yet
-}
-
-void onPoopMessageReceived(const OscMessage& m) {
-  Serial.println("poop message received!");
-  // increase poop value
-  poopSpeedPlus = constrain(poopSpeedPlus + 1, 0, 12);
 }
 
 

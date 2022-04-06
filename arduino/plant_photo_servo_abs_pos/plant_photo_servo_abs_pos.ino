@@ -310,11 +310,11 @@ void detect_danger(){
   int dangervalue = read_light();
   readssincedanger++;
 
-  Serial.print(dangervalue);
-  Serial.print(":");
-  Serial.println(prev_dangervalue);
   if(readssincedanger > 5 && dangervalue < prev_dangervalue - danger_threshold){
     Serial.println("DANGER!");
+    Serial.print(dangervalue);
+    Serial.print(":");
+    Serial.println(prev_dangervalue);
     mode = "alerting";
  //   jerk_branch();
     sendToAll("/danger", 1);
@@ -328,8 +328,8 @@ void detect_danger(){
 
 int read_light(){
   int lightvalue = analogRead(fsrAnalogPin);
-  Serial.print("Analog reading = ");
-  Serial.println(lightvalue);
+ // Serial.print("Analog reading = ");
+ // Serial.println(lightvalue);
   return lightvalue;
 }
 
@@ -380,7 +380,7 @@ void seek_light(){
 
 void onDangerMessageReceived(const OscMessage& m) {
   // danger message received, go into search mode;
-  Serial.println("got danger message!");
+  Serial.println("++++++++++++++++++++++++ got danger message!");
   if(mode == "wait"){
     mode = "search";
   }else{
@@ -390,13 +390,13 @@ void onDangerMessageReceived(const OscMessage& m) {
 
 void onWaterMessageReceived(const OscMessage& m) {
   // danger message received, go into search mode;
-  Serial.print("got water message: ");
+  Serial.print("+++++++++++++++++++++++++++ got water message: ");
   Serial.println(m.arg<int>(0));
   waterLevel = m.arg<int>(0);
 }
 
 void onPoopMessageReceived(const OscMessage& m) {
-  Serial.println("poop message received");
+  Serial.println("Ppppppppppppppppppppppppppp poop message received");
   moveSpeed = moveSpeed + 1;
   jerk_branch(); 
 }
