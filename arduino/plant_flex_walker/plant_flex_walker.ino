@@ -279,6 +279,15 @@ int blackTrigger = 200;
 int redTriggered = false;
 int blackTriggered = false;
 
+int stopInc = 0;
+int slowRedWalk = 3;
+int fastRedWalk = 8;
+int slowBlackWalk = -6;
+int fastBlackWalk = -10;
+
+String dir = "red";
+
+
 void pre_setup_sensor(){
   // this runs BEFORE the regular setup.
 
@@ -386,9 +395,9 @@ void read_flex(){
     moveRed(); // move towards red
   }
   if(blackTriggered && blackReading > blackTrigger){
-    redTriggered = false;
+    blackTriggered = false;
   }
-  if(blackTriggered && blackReading > blackTrigger){
+  if(redTriggered && redReading > redTrigger){
     redTriggered = false;
   }
 
@@ -408,19 +417,17 @@ int ccwmove_count = 0;
 void onDangerMessageReceived(const OscMessage& m) {
   // danger message received, go into search mode;
   Serial.println("got danger message!");
-  
+  if(dir == "red"){
+    moveBlack();
+  }else if (dir == "black"){
+    moveRed();
+  }
 }
 
 
 
-int stopInc = 0;
-int slowRedWalk = 3;
-int fastRedWalk = 8;
-int slowBlackWalk = -8;
-int fastBlackWalk = -10;
-
-
 void moveRed(){
+  dir = "red";
   Serial.println("moving red");
   // turn wheels towards Red sensor
   int redSpeed = redStopSpeed+slowRedWalk;
@@ -431,6 +438,7 @@ void moveRed(){
 }
 
 void moveBlack(){
+  dir = "black";
   Serial.println("moving black");
   // turn wheels towards Black sensor
   int redSpeed = redStopSpeed+slowBlackWalk;

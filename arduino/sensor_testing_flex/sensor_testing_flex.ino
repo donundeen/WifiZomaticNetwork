@@ -92,9 +92,7 @@ void setup() {
     pre_setup_sensor();
 
     float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
-    Serial.println("battery level is " + String (batteryLevel));
-    Serial.println((float)analogRead(A13));
-    Serial.println((float)analogRead(A13) / 4095.0);
+    Serial.println("-+-+-+-+-+-+- battery level is " + String (batteryLevel));
 
     Serial.println(LED_BUILTIN);
     Serial.println(A8);
@@ -219,8 +217,10 @@ void resolveids(){
   Serial.println(thishumanname);
 }
 
-int fsrAnalogPin = A4;
-int fsrReading  = 3;      // the analog reading from the FSR resistor divider
+int redFlexPin = A4;
+int blackFlexPin = A3;
+int redReading  = 3;      // the analog reading from the FSR resistor divider
+int blackReading  = 3;      // the analog reading from the FSR resistor divider
 
 void pre_setup_sensor(){
 
@@ -234,6 +234,7 @@ void setup_sensor(){
 /* A4 / 36 ( 8 up from bottom on long side) - 
  *  this is an analog input A4 and also GPI #36. 
  *  Note it is _not_ an output-capable pin! It uses ADC #1
+A3 : 9 up from bottom on long side.
 
 // 3V is 2nd down from top on long 
 // gnd is 4 down on long side
@@ -241,8 +242,18 @@ void setup_sensor(){
 /*
  * Connect one end of Flex  to 5V, the other end to Analog 8.
 Then connect one end of a 10K resistor from Analog 8 to ground
+
+red flex:
 range when unflexed is around 1085 to 1157
 heavily flexed is around 800
+so trigger at 900
+
+black flex:
+range when unflexed is around 291 to 316
+heavily flexed is around 60
+so trigger at 200
+
+
  */
 }
 
@@ -251,17 +262,23 @@ heavily flexed is around 800
 int minFlex = 10000;
 int maxFlex = 0;
 void loop_sensor(){
-  Serial.println(fsrAnalogPin);
-  fsrReading = analogRead(fsrAnalogPin);
-  if(fsrReading > maxFlex){
-    maxFlex = fsrReading;
+  Serial.println(redFlexPin);
+  redReading = analogRead(redFlexPin);
+  if(redReading > maxFlex){
+    maxFlex = redReading;
   }
-  if(fsrReading < minFlex){
-    minFlex = fsrReading;
+  if(redReading < minFlex){
+    minFlex = redReading;
   }
-  Serial.print("Analog reading = ");
-  Serial.println(fsrReading);
+  Serial.print("Red Analog reading = ");
+  Serial.println(redReading);
   Serial.println(String(minFlex)+":"+String(maxFlex));
+
+  Serial.println(blackFlexPin);
+  blackReading = analogRead(blackFlexPin);
+  Serial.print("Black Analog reading = ");
+  Serial.println(blackReading);
+
   delay(500);
 
 }
