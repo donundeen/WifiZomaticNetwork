@@ -12,6 +12,7 @@
   "dependencies": {
     "aplay": "^1.2.0",
     "dgram": "^1.0.1",
+    "mqtt": "^4.3.7",
     "node-osc": "^6.1.11"
   }
 }
