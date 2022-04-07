@@ -4,7 +4,11 @@
  * ESP32 Adruino -> ESP32 Dev Module
  */
 
+#include <ESP32Servo.h>
+
+
 /*#include <Arduino.h>
+#include <WiFi.h>
 */
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -13,6 +17,7 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+
 // WiFi stuff
 //const char* ssid = "JJandJsKewlPad";
 //const char* pwd = "WeL0veLettuce";
@@ -20,8 +25,8 @@ PubSubClient client(espClient);
 
 const char* ssid = "log.local";
 const char* pwd = "";
-//const char* host = "10.0.0.74"; // rpi when on log.local
-const char* host = "10.0.0.203"; // what you're sending messages TO
+const char* host = "10.0.0.74"; // rpi when on log.local
+//const char* host = "10.0.0.203"; // what you're sending messages TO
 
 //const IPAddress ip(10, 0, 0, 225);
 IPAddress ip;  // THIS device's IP  (need to tie to consistent mac addresses, with a table)
@@ -29,10 +34,6 @@ const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
 int port = 1883;
-
-
-
-
 
 String arduinomacs[]= { 
 "40:F5:20:44:B1:3C",
@@ -51,35 +52,32 @@ int arduinoips[] = {
   225,
   226,
   227,
-  228,
+  228, // cyberpoop
   229,
   230,
   74,
   203,
 };
 
-int numplants = 8;
+int numplants = 9;
 
 String humannames[] = { 
   "stick",
   "pinecone",
-  "dirt",
+  "swingingtree",
   "branch",
-  "seedling",
-  "leaf",
+  "cyberpoop",
+  "barkcycle",
   "root",
   "mothertree",
   "accesspoint"
 };
+
 String ipprefix  = "10.0.0.";
 String thisarduinomac = "";
 String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
-
-long lastMsg = 0;
-char msg[50];
-int value = 0;
 
 void setup() {
 
@@ -105,13 +103,13 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
-  
-//    client.setClient(WiFi);
    
     connect_wifi();
 
     setup_mqtt();
-    
+
+    setup_sensor();
+
   
 }
 
@@ -162,54 +160,55 @@ void callback(char* topic, byte* message, unsigned int length) {
 
   // If a message is received on the topic esp32/output, you check if the message is either "on" or "off". 
   // Changes the output state according to the message
-  if (String(topic) == "esp32/output") {
-    Serial.print("Changing output to ");
-    if(messageTemp == "on"){
-      Serial.println("on");
-    }
-    else if(messageTemp == "off"){
-      Serial.println("off");
-    }
-  }
+
+  sensor_sub_callback(String(topic), messageTemp);
+  
 }
 
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
+    Serial.print("Attempting MQTT connection to "+String(host)+" as "+thishumanname+" ..." );
     // Attempt to connect
+    client.setKeepAlive(60);        
     char humanname_c[thishumanname.length() + 1];
     thishumanname.toCharArray(humanname_c, thishumanname.length() + 1); 
     if (client.connect(humanname_c)) {
       Serial.println("connected");
       // Subscribe
-      client.subscribe("Test");
+      setup_subs();
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
       // Wait 5 seconds before retrying
-      delay(5000);
+      fastblink(4);    
+      delay(4000);
     }
   }
 }
-void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
 
-  long now = millis();
-  if (now - lastMsg > 5000) {
-    Serial.println("sending");
-    lastMsg = now;
-    char buf[4];
-    int humString  = random(0,1000);
-    sprintf(buf, "%03i", humString);
-    client.publish("Test", buf);
-  }
+int count = 0;
+void loop() {
+  
+    connect_wifi();
+    if (!client.connected()) {
+      reconnect();
+    }    
+    client.loop();
+
+    delay(100);
+    
 }
 
+
+void sendMessage(char* topic, int part1){
+    connect_wifi();  
+    Serial.println("sending " + String(topic) + ":"+String(part1) );
+    char buf[5];
+    sprintf(buf, "%04i", part1);
+    client.publish(topic, buf);
+}
 
 void fastblink(int times){
   for(int i = 0; i< times; i++){
@@ -243,4 +242,59 @@ void resolveids(){
   Serial.println(thisarduinoip);
   Serial.print("human name : " );
   Serial.println(thishumanname);
+}
+
+
+
+
+void pre_setup_sensor(){
+  // this runs BEFORE the regular setup.
+
+}
+
+void setup_subs(){
+  Serial.println("subscribing ..." );
+    client.subscribe("/poop",1);
+    client.subscribe("/danger",1);
+  Serial.println("subscribed!" );
+}
+
+
+void sensor_sub_callback(String topic, String message){
+  if (topic == "/poop") {
+    onPoopMessageReceived(message);
+  }
+  else if(topic == "/danger"){
+    onDangerMessageReceived(message);
+  }
+}
+
+void setup_sensor(){
+    Serial.println("setup_sensor");
+ 
+}
+
+
+
+void loop_sensor(){
+  //Serial.println("loop_sensor");
+  //calibrate_servo();
+  
+}
+
+
+void onPoopMessageReceived(String message) {
+  Serial.println("poop message received!");
+  // increase poop value
+}
+
+void onDangerMessageReceived(String message) {
+  // danger message received, reverse direction;
+
+  Serial.println("got danger message!");
+
+}
+
+void onWaterMessageReceived(String message) {
+// nothing planned here yet
 }

@@ -51,10 +51,7 @@ IPAddress ip;  // THIS device's IP  (need to tie to consistent mac addresses, wi
 const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
-int i; float f; String s;
 int port = 1883;
-
-
 
 String arduinomacs[]= { 
 "40:F5:20:44:B1:3C",
@@ -129,6 +126,10 @@ void setup() {
 
     setup_mqtt();
 
+    if (!client.connected()) {
+      reconnect();
+    }     
+
     setup_sensor();
 
   
@@ -197,7 +198,10 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ESP8266Client")) {
+    client.setKeepAlive(60);    
+    char humanname_c[thishumanname.length() + 1];
+    thishumanname.toCharArray(humanname_c, thishumanname.length() + 1); 
+    if (client.connect(humanname_c)) {
       Serial.println("connected");
       // Subscribe
       client.subscribe("Test");
@@ -484,13 +488,19 @@ void loop_sensor(){
   Serial.print(" \temp: "); Serial.print(temp.temperature); 
   Serial.println(" uTesla ");
 */
+/*
 Serial.print("_______________");
 Serial.println(poopTriggered);
 Serial.println(mx + my + mz);
+*/
   // when the sum of all three Abs vals is > 1000
   // then send the udp poop messages
   if(!poopTriggered && mx + my + mz > 1000){
     Serial.print("POOOOOOOOOOOP");
+    Serial.print("_______________");
+    Serial.println(poopTriggered);
+    Serial.println(mx + my + mz);
+    
     Serial.println(poopTriggered);
     poopTriggered = true;
     Serial.println(poopTriggered);

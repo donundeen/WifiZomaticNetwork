@@ -7,9 +7,12 @@
 /*#include <Arduino.h>
 #include <WiFi.h>
 */
-#include <ArduinoOSCWiFi.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
 // #include <ArduinoOSC.h> // you can use this if your borad supports only WiFi or Ethernet
 
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 
 // WiFi stuff
@@ -20,23 +23,14 @@
 const char* ssid = "log.local";
 const char* pwd = "";
 //const char* host = "10.0.0.74"; // rpi when on log.local
-const char* host = "10.0.0.225"; // what you're sending messages TO
+const char* host = "10.0.0.203"; // what you're sending messages TO
 
 //const IPAddress ip(10, 0, 0, 225);
 IPAddress ip;  // THIS device's IP  (need to tie to consistent mac addresses, with a table)
 const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
-int i; float f; String s;
-int port = 9002;
-int publish_port= port;
-int bind_port = port;
-
-
-// for ArduinoOSC
-const int recv_port = port;
-const int send_port = port;
-// send / receive varibales
+int port = 1883;
 
 String arduinomacs[]= { 
 "40:F5:20:44:B1:3C",
@@ -65,12 +59,12 @@ int arduinoips[] = {
 int numplants = 9;
 
 String humannames[] = { 
-  "stick",
+  "water",
   "pinecone",
-  "dirt",
+  "swingingtree",
   "branch",
   "cyberpoop",
-  "barkwalker",
+  "barkcycle",
   "root",
   "mothertree",
   "accesspoint"
@@ -82,10 +76,13 @@ String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
 
-
 void setup() {
 
     Serial.begin(115200);
+
+    float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
+    Serial.println("-+-+-+-+-+-+- battery level is " + String (batteryLevel));
+
     Serial.println(LED_BUILTIN);
     Serial.println(A8);
     pinMode(LED_BUILTIN, OUTPUT);
@@ -104,35 +101,20 @@ void setup() {
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
    
-#ifdef ESP_PLATFORM
-    WiFi.disconnect(true, true);  // disable wifi, erase ap info
-    delay(1000);
-    WiFi.mode(WIFI_STA);
-#endif
-
-    WiFi.begin(ssid, pwd);
-    WiFi.config(ip, gateway, subnet);
-    
-    while (WiFi.status() != WL_CONNECTED) {
-        Serial.print(".");
-        fastblink(2);
-//        delay(500);
-    }
-    
-    Serial.print("WiFi connected, IP = ");
-    Serial.println(WiFi.localIP());
-
-    // publish osc messages (default publish rate = 30 [Hz])
-
-
-
-  // this listens for messages, sends results to onPlantMessageReceived function
-  //    OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
     connect_wifi();
+
+    setup_mqtt();
+
     setup_sensor();
+
   
 }
 
+
+void setup_mqtt(){
+  client.setServer(host, port);
+  client.setCallback(callback);
+}
 
 void connect_wifi(){
    if(WiFi.status() != WL_CONNECTED){
@@ -158,53 +140,64 @@ void connect_wifi(){
   
 }
 
-
-int count = 0;
-void loop() {
-
-    loop_sensor();
-  /*
-    OscWiFi.update();  // should be called to receive + send osc
-*/
+// beware of returning messages that were just sent.
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
   
-    /*
-    // just send message 5 times, for testing
-    if(sendcount <= 5 || random(100) < 5){
-//      sendPlantMessage(host, count, 456);
-      sendToAll("/plantmessage", sendcount);
-      sendcount++;
-//      OscWiFi.send(host, publish_port, "/plantmessage", count, 456); // to publish osc
-      delay(500);
-    }
-*/
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }
+  Serial.println();
 
+  // Feel free to add more if statements to control more GPIOs with MQTT
+  sensor_sub_callback(String(topic), messageTemp);
 }
 
-void sendToAll(String channel, int message){
-  Serial.print("size is " );
-  Serial.println(sizeof(arduinoips));
-  for (int i = 0; i< numplants; i++){
-    int rec_ip = arduinoips[i];
-    Serial.print("rec_ip is " );
-    Serial.println(rec_ip);
-    if(rec_ip != thisarduinoip){
-        String fullip = ipprefix+String(rec_ip);
-        Serial.print("fullip is " );
-        Serial.println(fullip);        
-        sendMessage(fullip, channel, message);
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    client.setKeepAlive(60);    
+    char humanname_c[thishumanname.length() + 1];
+    thishumanname.toCharArray(humanname_c, thishumanname.length() + 1); 
+    if (client.connect(humanname_c)) {
+      Serial.println("connected");
+      // Subscribe
+      setup_subs();
+     } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      fastblink(4);    
+      delay(4000);
     }
   }
 }
 
-void sendMessage(String host, String channel, int part1){
+int count = 0;
+void loop() {
     connect_wifi();
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("I'm not connected!");
-    }else{
-      Serial.println("I AM connected!"); 
-    }
-    Serial.println("sending " + host + channel + ":"+publish_port);
-    OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
+    if (!client.connected()) {
+      reconnect();
+    }    
+    client.loop();
+
+    loop_sensor();
+}
+
+
+void sendMessage(char* topic, int part1){
+    connect_wifi();  
+    Serial.println("sending " + String(topic) + ":"+String(part1) );
+    char buf[5];
+    sprintf(buf, "%04i", part1);
+    client.publish(topic, buf);
 }
 
 
@@ -245,6 +238,18 @@ void resolveids(){
 int fsrAnalogPin = A4;
 int fsrReading  = 3;      // the analog reading from the FSR resistor divider
 
+void pre_setup_sensor(){
+  // this runs BEFORE the regular setup.
+
+}
+
+void setup_subs(){
+
+}
+
+void sensor_sub_callback(String topic, String message){
+}
+
 void setup_sensor(){
 /* A4 / 36 ( 8 up from bottom on long side) - 
  *  this is an analog input A4 and also GPI #36. 
@@ -267,6 +272,6 @@ void loop_sensor(){
   fsrReading = analogRead(fsrAnalogPin);
   Serial.print("Analog reading = ");
   Serial.println(fsrReading);
-  sendToAll("/water", fsrReading);
-  delay(2000);
+  sendMessage("/water", fsrReading);
+  delay(5000);
 }
