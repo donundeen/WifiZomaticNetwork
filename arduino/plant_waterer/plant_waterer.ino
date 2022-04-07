@@ -7,9 +7,12 @@
 /*#include <Arduino.h>
 #include <WiFi.h>
 */
-#include <ArduinoOSCWiFi.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
 // #include <ArduinoOSC.h> // you can use this if your borad supports only WiFi or Ethernet
 
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 
 // WiFi stuff
@@ -20,25 +23,14 @@
 const char* ssid = "log.local";
 const char* pwd = "";
 //const char* host = "10.0.0.74"; // rpi when on log.local
-const char* host = "10.0.0.225"; // what you're sending messages TO
+const char* host = "10.0.0.203"; // what you're sending messages TO
 
 //const IPAddress ip(10, 0, 0, 225);
 IPAddress ip;  // THIS device's IP  (need to tie to consistent mac addresses, with a table)
 const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
-int i; float f; String s;
-
-int port = 9002;
-
-int publish_port= port;
-int bind_port = port;
-
-
-// for ArduinoOSC
-const int recv_port = port;
-const int send_port = port;
-// send / receive variables
+int port = 1883;
 
 String arduinomacs[]= { 
 "40:F5:20:44:B1:3C",
@@ -55,7 +47,7 @@ String arduinomacs[]= {
 int arduinoips[] = {
   224,
   225,
-  226, // swinging tree
+  226,
   227,
   228, // cyberpoop
   229,
@@ -67,12 +59,12 @@ int arduinoips[] = {
 int numplants = 9;
 
 String humannames[] = { 
-  "stick",
+  "water",
   "pinecone",
   "swingingtree",
   "branch",
   "cyberpoop",
-  "leaf",
+  "barkcycle",
   "root",
   "mothertree",
   "accesspoint"
@@ -84,12 +76,9 @@ String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
 
-
 void setup() {
 
     Serial.begin(115200);
-    
-    pre_setup_sensor();
 
     float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
     Serial.println("-+-+-+-+-+-+- battery level is " + String (batteryLevel));
@@ -111,18 +100,21 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
- 
+   
     connect_wifi();
+
+    setup_mqtt();
 
     setup_sensor();
 
-
-    // publish osc messages (default publish rate = 30 [Hz])
-  // this listens for messages, sends results to onPlantMessageReceived function
-  //  OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
   
 }
 
+
+void setup_mqtt(){
+  client.setServer(host, port);
+  client.setCallback(callback);
+}
 
 void connect_wifi(){
    if(WiFi.status() != WL_CONNECTED){
@@ -148,40 +140,66 @@ void connect_wifi(){
   
 }
 
+// beware of returning messages that were just sent.
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
+  
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }
+  Serial.println();
 
-int count = 0;
-void loop() {
-    connect_wifi();
-    OscWiFi.update();  // should be called to receive + send osc
-    loop_sensor();
+  // Feel free to add more if statements to control more GPIOs with MQTT
+  sensor_sub_callback(String(topic), messageTemp);
 }
 
-void sendToAll(String channel, int message){
-  Serial.print("size is " );
-  Serial.println(sizeof(arduinoips));
-  for (int i = 0; i< numplants; i++){
-    int rec_ip = arduinoips[i];
-    Serial.print("rec_ip is " );
-    Serial.println(rec_ip);
-    if(rec_ip != thisarduinoip){
-        String fullip = ipprefix+String(rec_ip);
-        Serial.print("fullip is " );
-        Serial.println(fullip);        
-        sendMessage(fullip, channel, message);
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    client.setKeepAlive(60);    
+    char humanname_c[thishumanname.length() + 1];
+    thishumanname.toCharArray(humanname_c, thishumanname.length() + 1); 
+    if (client.connect(humanname_c)) {
+      Serial.println("connected");
+      // Subscribe
+      setup_subs();
+     } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      fastblink(4);    
+      delay(4000);
     }
   }
 }
 
-void sendMessage(String host, String channel, int part1){
+int count = 0;
+void loop() {
     connect_wifi();
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("I'm not connected!");
-    }else{
-      Serial.println("I AM connected!");
-    }
-    Serial.println("sending " + host + channel + ":"+publish_port);
-    OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
+    if (!client.connected()) {
+      reconnect();
+    }    
+    client.loop();
+
+    loop_sensor();
 }
+
+
+void sendMessage(char* topic, int part1){
+    connect_wifi();  
+    Serial.println("sending " + String(topic) + ":"+String(part1) );
+    char buf[5];
+    sprintf(buf, "%04i", part1);
+    client.publish(topic, buf);
+}
+
 
 void fastblink(int times){
   for(int i = 0; i< times; i++){
@@ -217,68 +235,43 @@ void resolveids(){
   Serial.println(thishumanname);
 }
 
-int redFlexPin = A3;
-int blackFlexPin = A4;
-int redReading  = 3;      // the analog reading from the FSR resistor divider
-int blackReading  = 3;      // the analog reading from the FSR resistor divider
+int fsrAnalogPin = A4;
+int fsrReading  = 3;      // the analog reading from the FSR resistor divider
 
 void pre_setup_sensor(){
+  // this runs BEFORE the regular setup.
 
-  
+}
+
+void setup_subs(){
+
+}
+
+void sensor_sub_callback(String topic, String message){
 }
 
 void setup_sensor(){
-
-  // check battery level
-  
 /* A4 / 36 ( 8 up from bottom on long side) - 
  *  this is an analog input A4 and also GPI #36. 
  *  Note it is _not_ an output-capable pin! It uses ADC #1
-A3 : 9 up from bottom on long side.
 
 // 3V is 2nd down from top on long 
 // gnd is 4 down on long side
 */
 /*
- * Connect one end of Flex  to 5V, the other end to Analog 4.
-Then connect one end of a 10K resistor from Analog 4 to ground
-
-red flex: A3
-range when unflexed is around 1085 to 1157
-heavily flexed is around 800
-so trigger at 900
-
-black flex: A4
-range when unflexed is around 291 to 316
-heavily flexed is around 60
-so trigger at 200
+ * Connect vcc out from HL-01 to 3V, 
+ * Connect AO out  to Analog 4 .
+ * Connect Gnd to Ground
 
 
  */
 }
 
-
-
-int minFlex = 10000;
-int maxFlex = 0;
 void loop_sensor(){
-  Serial.println(redFlexPin);
-  redReading = analogRead(redFlexPin);
-  if(redReading > maxFlex){
-    maxFlex = redReading;
-  }
-  if(redReading < minFlex){
-    minFlex = redReading;
-  }
-  Serial.print("Red Analog reading = ");
-  Serial.println(redReading);
-  Serial.println(String(minFlex)+":"+String(maxFlex));
-
-  Serial.println(blackFlexPin);
-  blackReading = analogRead(blackFlexPin);
-  Serial.print("Black Analog reading = ");
-  Serial.println(blackReading);
-
-  delay(500);
-
+  Serial.println(fsrAnalogPin);
+  fsrReading = analogRead(fsrAnalogPin);
+  Serial.print("Analog reading = ");
+  Serial.println(fsrReading);
+  sendMessage("/water", fsrReading);
+  delay(5000);
 }

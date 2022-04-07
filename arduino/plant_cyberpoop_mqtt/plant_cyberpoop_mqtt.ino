@@ -28,9 +28,12 @@ Adafruit_LIS3MDL lis3mdl;
 /*#include <Arduino.h>
 #include <WiFi.h>
 */
-#include <ArduinoOSCWiFi.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
 // #include <ArduinoOSC.h> // you can use this if your borad supports only WiFi or Ethernet
 
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 
 // WiFi stuff
@@ -41,24 +44,14 @@ Adafruit_LIS3MDL lis3mdl;
 const char* ssid = "log.local";
 const char* pwd = "";
 //const char* host = "10.0.0.74"; // rpi when on log.local
-const char* host = "10.0.0.225"; // what you're sending messages TO
+const char* host = "10.0.0.203"; // what you're sending messages TO
 
 //const IPAddress ip(10, 0, 0, 225);
 IPAddress ip;  // THIS device's IP  (need to tie to consistent mac addresses, with a table)
 const IPAddress gateway(10, 0, 0, 1);
 const IPAddress subnet(255, 255, 255, 0);
 
-int i; float f; String s;
-int port = 9002;
-
-int publish_port= port;
-int bind_port = port;
-
-
-// for ArduinoOSC
-const int recv_port = port;
-const int send_port = port;
-// send / receive varibales
+int port = 1883;
 
 String arduinomacs[]= { 
 "40:F5:20:44:B1:3C",
@@ -131,11 +124,22 @@ void setup() {
    
     connect_wifi();
 
+    setup_mqtt();
+
+    if (!client.connected()) {
+      reconnect();
+    }     
+
     setup_sensor();
 
   
 }
 
+
+void setup_mqtt(){
+  client.setServer(host, port);
+  client.setCallback(callback);
+}
 
 void connect_wifi(){
    if(WiFi.status() != WL_CONNECTED){
@@ -161,38 +165,75 @@ void connect_wifi(){
   
 }
 
-
-int count = 0;
-void loop() {
-    connect_wifi();
-    OscWiFi.update();  // should be called to receive + send osc
-
-    loop_sensor();
+// beware of returning messages that were just sent.
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
   
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }
+  Serial.println();
 
-}
+  // Feel free to add more if statements to control more GPIOs with MQTT
 
-void sendToAll(String channel, int message){
-  Serial.print("size is " );
-  Serial.println(sizeof(arduinoips));
-  for (int i = 0; i< numplants; i++){
-    int rec_ip = arduinoips[i];
-    Serial.print("rec_ip is " );
-    Serial.println(rec_ip);
-    if(rec_ip != thisarduinoip){
-        String fullip = ipprefix+String(rec_ip);
-        Serial.print("fullip is " );
-        Serial.println(fullip);        
-        sendMessage(fullip, channel, message);
+  // If a message is received on the topic esp32/output, you check if the message is either "on" or "off". 
+  // Changes the output state according to the message
+  if (String(topic) == "esp32/output") {
+    Serial.print("Changing output to ");
+    if(messageTemp == "on"){
+      Serial.println("on");
+    }
+    else if(messageTemp == "off"){
+      Serial.println("off");
     }
   }
 }
 
-void sendMessage(String host, String channel, int part1){
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    client.setKeepAlive(60);    
+    char humanname_c[thishumanname.length() + 1];
+    thishumanname.toCharArray(humanname_c, thishumanname.length() + 1); 
+    if (client.connect(humanname_c)) {
+      Serial.println("connected");
+      // Subscribe
+      client.subscribe("Test");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      fastblink(4);    
+      delay(4000);
+    }
+  }
+}
+
+int count = 0;
+void loop() {
     connect_wifi();
-  
-    Serial.println("sending " + host + channel + ":"+publish_port );
-    OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
+    if (!client.connected()) {
+      reconnect();
+    }    
+    client.loop();
+
+    loop_sensor();
+}
+
+
+void sendMessage(char* topic, int part1){
+    connect_wifi();  
+    Serial.println("sending " + String(topic) + ":"+String(part1) );
+    char buf[5];
+    sprintf(buf, "%04i", part1);
+    client.publish(topic, buf);
 }
 
 
@@ -234,9 +275,6 @@ void resolveids(){
 
 
 void setup_sensor(){
-
-  OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
-
 
   // gyro/accel stuff
   bool lsm6ds_success, lis3mdl_success;
@@ -439,25 +477,6 @@ void loop_sensor(){
   lsm6ds.getEvent(&accel, &gyro, &temp);
   lis3mdl.getEvent(&mag);
 
-/*
-  // Display the results (acceleration is measured in m/s^2) 
-  Serial.print("\t\tAccel X: ");
-  Serial.print(accel.acceleration.x, 4);
-  Serial.print(" \tY: ");
-  Serial.print(accel.acceleration.y, 4);
-  Serial.print(" \tZ: ");
-  Serial.print(accel.acceleration.z, 4);
-  Serial.println(" \tm/s^2 ");
-
-  // Display the results (rotation is measured in rad/s) 
-  Serial.print("\t\tGyro  X: ");
-  Serial.print(gyro.gyro.x, 4);
-  Serial.print(" \tY: ");
-  Serial.print(gyro.gyro.y, 4);
-  Serial.print(" \tZ: ");
-  Serial.print(gyro.gyro.z, 4);
-  Serial.println(" \tradians/s ");
-*/
   // magneto stuff
   float mx = abs(mag.magnetic.x);
   float my = abs(mag.magnetic.y);
@@ -469,17 +488,23 @@ void loop_sensor(){
   Serial.print(" \temp: "); Serial.print(temp.temperature); 
   Serial.println(" uTesla ");
 */
+/*
 Serial.print("_______________");
 Serial.println(poopTriggered);
 Serial.println(mx + my + mz);
+*/
   // when the sum of all three Abs vals is > 1000
   // then send the udp poop messages
   if(!poopTriggered && mx + my + mz > 1000){
     Serial.print("POOOOOOOOOOOP");
+    Serial.print("_______________");
+    Serial.println(poopTriggered);
+    Serial.println(mx + my + mz);
+    
     Serial.println(poopTriggered);
     poopTriggered = true;
     Serial.println(poopTriggered);
-    sendToAll("/poop",1);
+    sendMessage("/poop",1);
     
   }else{
     if(poopTriggered && mx + my + mz < 1000){
@@ -490,14 +515,13 @@ Serial.println(mx + my + mz);
   }
 
   
-  
   delay(100);
 }
 
 
 
 
-void onDangerMessageReceived(const OscMessage& m) {
+void onDangerMessageReceived(int m) {
   // danger message received, go into search mode;
   Serial.println("got danger message!");
 

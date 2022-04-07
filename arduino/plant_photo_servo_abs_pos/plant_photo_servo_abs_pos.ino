@@ -86,6 +86,7 @@ int thisarduinoip = 0;
 int sendcount = 0;
 
 
+
 void setup() {
 
     Serial.begin(115200);
@@ -93,7 +94,6 @@ void setup() {
     float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
     Serial.println("-+-+-+-+-+-+- battery level is " + String (batteryLevel));
 
-   
     
     pre_setup_sensor();
 
@@ -114,9 +114,8 @@ void setup() {
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
-  
+ 
     connect_wifi();
-
 
     setup_sensor();
 
@@ -126,7 +125,6 @@ void setup() {
   //  OscWiFi.subscribe(recv_port, "/plantmessage", onPlantMessageReceived);
   
 }
-
 
 void connect_wifi(){
    if(WiFi.status() != WL_CONNECTED){
@@ -152,14 +150,12 @@ void connect_wifi(){
   
 }
 
+
 int count = 0;
 void loop() {
-
     connect_wifi();
     OscWiFi.update();  // should be called to receive + send osc
     loop_sensor();
-  
-
 }
 
 void sendToAll(String channel, int message){
@@ -224,16 +220,7 @@ void resolveids(){
   Serial.println(thishumanname);
 }
 
-
-/*
- * A4/36 ( 8 up from bottom on long side) - this is an analog input A4 and also GPI #36. Note it is _not_ an output-capable pin! It uses ADC #1
-*  A3/39 (9 up from bottom on long side)- this is an analog input A3 and also GPI #39. Note it is _not_ an output-capable pin! It uses ADC #1 
- * 
- */
 int fsrAnalogPin = A4;
-int fsrAnalogPin2 = A3;
-int fsrReading  = 3;      // the analog reading from the FSR resistor divider
-int fsrReading2  = 3;      // the analog reading from the FSR resistor divider
 
 
 // this plant can move a branch with a directed light detector. 
@@ -264,29 +251,22 @@ String mode = "wait"; // 'search' or 'alerting' or 'wait'
  * 90 is slower clockwise
  * 
  */
-int redServoPin = A0;
-int blackServoPin = A1;
-Servo redServo;  // create servo object to control a servo
-Servo blackServo;  // create servo object to control a servo
-int redStopSpeed = 97;
-int blackStopSpeed = 95;
-int redFlexPin = A3;
-int blackFlexPin = A4;
-int redReading  = 3;      // the analog reading from the FSR resistor divider
-int blackReading  = 3;      // the analog reading from the FSR resistor divider
-int redTrigger = 900;
-int blackTrigger = 200;
-int redTriggered = false;
-int blackTriggered = false;
+int servoPin = A0;
+Servo myservo;  // create servo object to control a servo
+int stopSpeed = 95;
+int pos = 90; // start pos in the middle
 
 void pre_setup_sensor(){
   // this runs BEFORE the regular setup.
+  myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
 
 }
 
 void setup_sensor(){
     Serial.println("setup_sensor");
     OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
+    OscWiFi.subscribe(recv_port, "/poop", onPoopMessageReceived);
+    OscWiFi.subscribe(recv_port, "/water", onWaterMessageReceived);
     Serial.println("subscribed");
 
 /* A4 / 36 ( 8 up from bottom on long side) - 
@@ -300,205 +280,135 @@ void setup_sensor(){
  * Connect one end of photoresistor  to 5V, the other end to Analog 4 (gpio36).
 Then connect one end of a 10K resistor from Analog 4 to ground
  */
-  redServo.attach(redServoPin);  // attaches the servo on pin servoPin to the servo object
-  blackServo.attach(blackServoPin);  // attaches the servo on pin servoPin2 to the servo object
+  myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
  // mode = "search";
   // set servo stop spee depedning on servo/device
-  /*
-  if( thisarduinomac == "40:F5:20:45:D5:14"){
-    stopSpeed=92;
-    Serial.println(stopSpeed);
-  }
-  if( thisarduinomac == "C4:DD:57:9C:DC:A4"){
-    stopSpeed=90;
-    Serial.println(stopSpeed);
-  }
-  */
-//  test_walk();
-//  test_move();
-//  seek_light();
-  moveRed(); // start in one direction
+  Serial.println("matching mac " +thisarduinomac);
+  seek_light();
   
 }
-
-
 
 void loop_sensor(){
   //Serial.println("loop_sensor");
   //calibrate_servo();
-  read_flex();
-  /*
   if(mode == "search"){
     seek_light();
   }else if (mode == "wait"){
-    myservo.write(stopSpeed);  // stop motor
     OscWiFi.update();  // should be called to receive + send osc
     detect_danger();
   }
-  */
   delay(100);
-  
 }
 
-/* A4 / 36 ( 8 up from bottom on long side) - 
- *  this is an analog input A4 and also GPI #36. 
- *  Note it is _not_ an output-capable pin! It uses ADC #1
-A3 : 9 up from bottom on long side.
+int prev_light = -1;
+int timer = 0;
 
-// 3V is 2nd down from top on long 
-// gnd is 4 down on long side
-*/
-/*
- * Connect one end of Flex  to 5V, the other end to Analog 4.
-Then connect one end of a 10K resistor from Analog 4 to ground
+int prev_dangervalue = -1;
+int danger_threshold = 150;
+int readssincedanger = 0; // lets do a few reads before sending danger again.
+void detect_danger(){
+  int dangervalue = read_light();
+  readssincedanger++;
 
-red flex: A3
-range when unflexed is around 1085 to 1157
-heavily flexed is around 800
-so trigger at 900
-
-black flex: A4
-range when unflexed is around 291 to 316
-heavily flexed is around 60
-so trigger at 200
-
-
- */
-
-
-void read_flex(){
-  redReading = analogRead(redFlexPin);
-  Serial.print("Red Analog reading = ");
-  Serial.println(redReading);
-
-  blackReading = analogRead(blackFlexPin);
-  Serial.print("Black Analog reading = ");
-  Serial.println(blackReading);
-
-  if(!redTriggered && redReading < redTrigger){
-    redTriggered = true;
+  if(readssincedanger > 5 && dangervalue < prev_dangervalue - danger_threshold){
+    Serial.println("DANGER!");
+    Serial.print(dangervalue);
+    Serial.print(":");
+    Serial.println(prev_dangervalue);
+    mode = "alerting";
+ //   jerk_branch();
     sendToAll("/danger", 1);
-    moveBlack(); // move towards black
+    prev_dangervalue = -1;
+    readssincedanger = 0;   // lets do a few reads before sending danger again. 
+    delay(1000);
+    mode = "wait"; 
   }
-  if(!blackTriggered && blackReading < blackTrigger){
-    blackTriggered = true;
-    sendToAll("/danger", 1);    
-    moveRed(); // move towards red
-  }
-  if(blackTriggered && blackReading > blackTrigger){
-    redTriggered = false;
-  }
-  if(blackTriggered && blackReading > blackTrigger){
-    redTriggered = false;
-  }
-
+  prev_dangervalue = dangervalue;
 }
 
-/*
-int cwmove = stopSpeed - 10;
-int ccwmove = stopSpeed + 10;
+int read_light(){
+  int lightvalue = analogRead(fsrAnalogPin);
+ // Serial.print("Analog reading = ");
+ // Serial.println(lightvalue);
+  return lightvalue;
+}
+
+
+int moveSpeed = 4; // a poop alert increases this number. It goes down every time it runs seek_light
+int waterLevel = 2000; // ranges from 0 (most wet, rare) to around 4095 // most dry
+
+int cwmove = stopSpeed - moveSpeed;
+int ccwmove = stopSpeed + moveSpeed;
 int dir = cwmove; // initial direction
 
 // this function is where the servo seeks a light source
 int cwmove_count = 0;
 int ccwmove_count = 0;
-*/
+
+
+// this servo has absolute positioning, just set the number 0-180
+
+void seek_light(){
+  Serial.println("seeking");
+  boolean seeking = true;
+
+  int posinc = constrain(map(waterLevel, 4095, 1000, 0, 10), 0, 10); 
+  int posdelay = constrain(map(moveSpeed, 0, 20, 500, 10), 10, 500);
+  int maxlight = 0;
+  pos = 0;
+  int maxlightpos = pos;
+  myservo.write(pos);  // stop motor
+  delay(250);
+  while(pos < 180){
+    int lightlevel = read_light();
+    if(lightlevel> maxlight){
+      maxlight = lightlevel;
+      maxlightpos = pos;    
+    }
+    pos = pos + posinc;
+    myservo.write(pos);  // incerement motor
+    delay(posdelay);    
+  }
+  Serial.println("max value : " + String(maxlight) + " at " + String(maxlightpos));
+  pos = maxlightpos;
+  myservo.write(pos);  // move to best light
+  prev_dangervalue = -1;  // reset prev_dangervalue so it doesn't keep seeing danger after a move. 
+  delay(1000);
+  mode = "wait";
+}
 
 
 void onDangerMessageReceived(const OscMessage& m) {
   // danger message received, go into search mode;
-  Serial.println("got danger message!");
-  
+  Serial.println("++++++++++++++++++++++++ got danger message!");
+  if(mode == "wait"){
+    mode = "search";
+  }else{
+    Serial.println("do nothing, not in wait mode");    
+  }
+}
+
+void onWaterMessageReceived(const OscMessage& m) {
+  // danger message received, go into search mode;
+  Serial.print("+++++++++++++++++++++++++++ got water message: ");
+  Serial.println(m.arg<int>(0));
+  waterLevel = m.arg<int>(0);
+}
+
+void onPoopMessageReceived(const OscMessage& m) {
+  Serial.println("Ppppppppppppppppppppppppppp poop message received");
+  moveSpeed = moveSpeed + 1;
+  jerk_branch(); 
 }
 
 
-
-int stopInc = 0;
-int slowRedWalk = 3;
-int fastRedWalk = 8;
-int slowBlackWalk = -8;
-int fastBlackWalk = -10;
-
-
-void moveRed(){
-  Serial.println("moving red");
-  // turn wheels towards Red sensor
-  int redSpeed = redStopSpeed+slowRedWalk;
-  int blackSpeed = blackStopSpeed+slowRedWalk;
-  Serial.println("slow speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed); 
-}
-
-void moveBlack(){
-  Serial.println("moving black");
-  // turn wheels towards Black sensor
-  int redSpeed = redStopSpeed+slowBlackWalk;
-  int blackSpeed = blackStopSpeed+slowBlackWalk;
-  Serial.println("slow back speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed); 
-}
-
-void stopWalk(){
-   int redSpeed = redStopSpeed; // stop?
-  int blackSpeed = blackStopSpeed;
-  Serial.println("stop");
-  Serial.println("speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed);
-}
-
-void test_walk(){
-  Serial.println("test_move");
-  int pos = 90;
-  int MIN_SERVO_VALUE = 0;
-  int MAX_SERVO_VALUE = 180;
-
-  int redSpeed = redStopSpeed; // stop?
-  int blackSpeed = blackStopSpeed;
-  Serial.println("stop");
-  Serial.println("speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed);
-  delay(3000);
-
-  redSpeed = redStopSpeed+slowRedWalk;
-  blackSpeed = blackStopSpeed+slowRedWalk;
-  Serial.println("slow speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed);
-  delay(3000);
-  
-  redSpeed = redStopSpeed+fastRedWalk;
-  blackSpeed = blackStopSpeed+fastRedWalk;
-  Serial.println("fast speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed);
-  delay(3000);
-
-  redSpeed = redStopSpeed; // stop?
-  blackSpeed = blackStopSpeed;
-  Serial.println("stop");
-  Serial.println("speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed);
-  delay(3000);
-
-  redSpeed = redStopSpeed+slowBlackWalk;
-  blackSpeed = blackStopSpeed+slowBlackWalk;
-  Serial.println("slow back speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed);
-  delay(3000);
-
-  redSpeed = redStopSpeed+fastBlackWalk;
-  blackSpeed = blackStopSpeed+fastBlackWalk;
-  Serial.println("fast back speeds: " + String(redSpeed) + ": " + String(blackSpeed));
-  redServo.write(redSpeed);
-  blackServo.write(blackSpeed);
-  delay(3000);
-
-  Serial.println("done test_move");
-
+void jerk_branch(){
+  // a little reaction jerk, so we can see when an important message came in (like a poop)
+  int leftpos = pos - 10;
+  int rightpos = pos + 10;
+  myservo.write(leftpos);  // move to best light
+  delay(250);
+  myservo.write(rightpos);  // move to best light
+  delay(250);
+  myservo.write(pos);  // move to best light
 }

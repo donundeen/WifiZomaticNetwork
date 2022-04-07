@@ -73,7 +73,7 @@ String humannames[] = {
   "swingingtree",
   "branch",
   "cyberpoop",
-  "leaf",
+  "barkcycle",
   "root",
   "mothertree",
   "accesspoint"
@@ -279,6 +279,17 @@ int blackTrigger = 200;
 int redTriggered = false;
 int blackTriggered = false;
 
+int stopInc = 0;
+int slowRedWalk = 3;
+int fastRedWalk = 8;
+int slowBlackWalk = -6;
+int fastBlackWalk = -10;
+
+int poopSpeedPlus = 0;
+
+String dir = "red";
+
+
 void pre_setup_sensor(){
   // this runs BEFORE the regular setup.
 
@@ -287,6 +298,8 @@ void pre_setup_sensor(){
 void setup_sensor(){
     Serial.println("setup_sensor");
     OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
+    OscWiFi.subscribe(recv_port, "/water", onWaterMessageReceived);
+    OscWiFi.subscribe(recv_port, "/poop", onPoopMessageReceived);
     Serial.println("subscribed");
 
 /* A4 / 36 ( 8 up from bottom on long side) - 
@@ -314,9 +327,7 @@ Then connect one end of a 10K resistor from Analog 4 to ground
     Serial.println(stopSpeed);
   }
   */
-//  test_walk();
-//  test_move();
-//  seek_light();
+
   moveRed(); // start in one direction
   
 }
@@ -368,12 +379,12 @@ so trigger at 200
 
 void read_flex(){
   redReading = analogRead(redFlexPin);
-  Serial.print("Red Analog reading = ");
-  Serial.println(redReading);
+//  Serial.print("Red Analog reading = ");
+//  Serial.println(redReading);
 
   blackReading = analogRead(blackFlexPin);
-  Serial.print("Black Analog reading = ");
-  Serial.println(blackReading);
+//  Serial.print("Black Analog reading = ");
+//  Serial.println(blackReading);
 
   if(!redTriggered && redReading < redTrigger){
     redTriggered = true;
@@ -386,9 +397,9 @@ void read_flex(){
     moveRed(); // move towards red
   }
   if(blackTriggered && blackReading > blackTrigger){
-    redTriggered = false;
+    blackTriggered = false;
   }
-  if(blackTriggered && blackReading > blackTrigger){
+  if(redTriggered && redReading > redTrigger){
     redTriggered = false;
   }
 
@@ -406,35 +417,56 @@ int ccwmove_count = 0;
 
 
 void onDangerMessageReceived(const OscMessage& m) {
-  // danger message received, go into search mode;
+  // danger message received, reverse direction;
   Serial.println("got danger message!");
-  
+
+  // reduce poop value:
+  poopSpeedPlus = constrain(poopSpeedPlus - 1, 0, 12);
+
+  if(dir == "red"){
+    moveBlack();
+  }else if (dir == "black"){
+    moveRed();
+  }
+}
+
+void onWaterMessageReceived(const OscMessage& m) {
+// nothing planned here yet
+}
+
+void onPoopMessageReceived(const OscMessage& m) {
+  Serial.println("poop message received!");
+  // increase poop value
+  poopSpeedPlus = constrain(poopSpeedPlus + 1, 0, 12);
 }
 
 
-
-int stopInc = 0;
-int slowRedWalk = 3;
-int fastRedWalk = 8;
-int slowBlackWalk = -8;
-int fastBlackWalk = -10;
-
-
 void moveRed(){
+  dir = "red";
   Serial.println("moving red");
   // turn wheels towards Red sensor
-  int redSpeed = redStopSpeed+slowRedWalk;
-  int blackSpeed = blackStopSpeed+slowRedWalk;
+  int extraSpeed= poopSpeedPlus;
+  if(slowRedWalk < 0){
+    extraSpeed = extraSpeed * -1;
+  }
+  int redSpeed = redStopSpeed + slowRedWalk + extraSpeed;
+  int blackSpeed = blackStopSpeed + slowRedWalk + extraSpeed;
   Serial.println("slow speeds: " + String(redSpeed) + ": " + String(blackSpeed));
   redServo.write(redSpeed);
   blackServo.write(blackSpeed); 
 }
 
 void moveBlack(){
+  dir = "black";
   Serial.println("moving black");
+  int extraSpeed= poopSpeedPlus;
+  if(slowRedWalk < 0){
+    extraSpeed = extraSpeed * -1;
+  }
+  
   // turn wheels towards Black sensor
-  int redSpeed = redStopSpeed+slowBlackWalk;
-  int blackSpeed = blackStopSpeed+slowBlackWalk;
+  int redSpeed = redStopSpeed + slowBlackWalk + extraSpeed;
+  int blackSpeed = blackStopSpeed + slowBlackWalk + extraSpeed;
   Serial.println("slow back speeds: " + String(redSpeed) + ": " + String(blackSpeed));
   redServo.write(redSpeed);
   blackServo.write(blackSpeed); 

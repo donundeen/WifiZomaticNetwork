@@ -178,7 +178,6 @@ void sendMessage(String host, String channel, int part1){
       Serial.println("I AM connected!");
       
     }
-  
     Serial.println("sending " + host + channel + ":"+publish_port);
     OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
@@ -336,9 +335,9 @@ int read_light(){
 }
 
 
-int moveSpeed = 2; // a poop alert increases this number. It goes down every time it runs seek_light
+int moveSpeed = 4; // a poop alert increases this number. It goes down every time it runs seek_light
 
-int waterLevel = 0;
+int waterLevel = 2000; // ranges from 0 (most wet, rare) to around 4095 // most dry
 
 int cwmove = stopSpeed - moveSpeed;
 int ccwmove = stopSpeed + moveSpeed;
@@ -362,6 +361,9 @@ void seek_light(){
   if(moveSpeed > 15){
     moveSpeed = 15;
   }
+
+  int mappedWaterLevel = constrain(map(waterLevel, 4095, 1000, 100, 500), 100, 500); // // ranges from 0 (most wet, rare) to around 4095 // most dry
+  int moveTimeBase = mappedWaterLevel;// based on water level. More water = longer moves
   
   cwmove = stopSpeed - moveSpeed;
   ccwmove = stopSpeed + moveSpeed;
@@ -400,16 +402,16 @@ void seek_light(){
     int movetime = 0;
     if(dir == cwmove){
       if(cwmove_count > ccwmove_count){
-        movetime = 400 - random(100); 
+        movetime = moveTimeBase - random(100); 
       }else{
-        movetime = 400 + random(100);         
+        movetime = moveTimeBase + random(100);         
       }
       cwmove_count += movetime;
     }else{
       if(cwmove_count > ccwmove_count){
-        movetime = 400 + random(100); 
+        movetime = moveTimeBase + random(100); 
       }else{
-        movetime = 400 - random(100);         
+        movetime = moveTimeBase - random(100);         
       }
       ccwmove_count += movetime;     
     }
@@ -431,8 +433,8 @@ void onDangerMessageReceived(const OscMessage& m) {
 
 void onWaterMessageReceived(const OscMessage& m) {
   // danger message received, go into search mode;
-  Serial.println("got water message!");
-  Serial.print(m.arg<int>(0));
+  Serial.print("got water message: ");
+  Serial.println(m.arg<int>(0));
   waterLevel = m.arg<int>(0);
 }
 
