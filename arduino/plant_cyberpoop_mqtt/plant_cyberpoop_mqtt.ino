@@ -83,7 +83,7 @@ String humannames[] = {
   "stick",
   "pinecone",
   "dirt",
-  "branch",
+  "sprout",
   "cyberpoop",
   "leaf",
   "root",
@@ -204,7 +204,7 @@ void reconnect() {
     if (client.connect(humanname_c)) {
       Serial.println("connected");
       // Subscribe
-      client.subscribe("Test");
+      //client.subscribe("Test");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -514,7 +514,6 @@ Serial.println(mx + my + mz);
     }
   }
 
-  
   delay(100);
 }
 

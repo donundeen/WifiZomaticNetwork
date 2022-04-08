@@ -25,8 +25,8 @@ PubSubClient client(espClient);
 
 const char* ssid = "log.local";
 const char* pwd = "";
-const char* host = "10.0.0.74"; // rpi when on log.local
-//const char* host = "10.0.0.203"; // what you're sending messages TO
+//const char* host = "10.0.0.74"; // rpi when on log.local
+const char* host = "10.0.0.203"; // what you're sending messages TO
 
 //const IPAddress ip(10, 0, 0, 225);
 IPAddress ip;  // THIS device's IP  (need to tie to consistent mac addresses, with a table)
@@ -424,8 +424,13 @@ void onDangerMessageReceived(String message) {
 }
 
 void onWaterMessageReceived(String message) {
-  // danger message received, go into search mode;
-  Serial.print("+++++++++++++++++++++++++++ got water message: ");
+/*
+Value out of soil: 4095
+Value in moist soil: ~2000, each reading +/-50 (range of 100)
+drier soil: ~3000
+ */  
+//water message received, adjust waterleve
+Serial.print("+++++++++++++++++++++++++++ got water message: ");
   Serial.println(message);
   waterLevel = message.toInt();
 }

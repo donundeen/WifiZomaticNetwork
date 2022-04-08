@@ -178,6 +178,7 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
+    client.setKeepAlive(60);        
     char humanname_c[thishumanname.length() + 1];
     thishumanname.toCharArray(humanname_c, thishumanname.length() + 1); 
     if (client.connect(humanname_c)) {

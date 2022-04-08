@@ -62,7 +62,7 @@ String humannames[] = {
   "water",
   "pinecone",
   "swingingtree",
-  "branch",
+  "sprout",
   "cyberpoop",
   "barkcycle",
   "root",
@@ -267,6 +267,11 @@ void setup_sensor(){
  */
 }
 
+/*
+Value out of soil: 4095
+Value in moist soil: ~2000, each reading +/-50 (range of 100)
+drier soil: ~3000
+ */
 void loop_sensor(){
   Serial.println(fsrAnalogPin);
   fsrReading = analogRead(fsrAnalogPin);
