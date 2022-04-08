@@ -104,36 +104,12 @@ String thishumanname = "";
 int thisarduinoip = 0;
 int sendcount = 0;
 
-void onPlantMessageReceived(const OscMessage& m) {
-  Serial.println("message received");
-    fastblink(5);
-    Serial.print(m.remoteIP());
-    Serial.print(" ");
-    Serial.print(m.remotePort());
-    Serial.print(" ");
-    Serial.print(m.size());
-    Serial.print(" ");
-    Serial.print(m.address());
-    Serial.print(" ");
-    // be mindful of the number of arguments to expect, and their type
-    Serial.print(m.arg<int>(0));
-    Serial.print(" ");
-    Serial.print(m.arg<int>(1));
-    /*
-    Serial.print(" ");
-    Serial.print(m.arg<String>(2));
-    */
-    Serial.println();
-
-    sendToAll("/plantmessage", sendcount);
-    sendcount++;  
-}
-
 void setup() {
 
     Serial.begin(115200);
 
-    setup_sensor();
+    float batteryLevel = (analogRead(A13) / 4095.0) * (2.0 * 3.3 * 1.1);
+    Serial.println("-+-+-+-+-+-+- battery level is " + String (batteryLevel));
 
     Serial.println(LED_BUILTIN);
     Serial.println(A8);
@@ -153,52 +129,46 @@ void setup() {
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
    
-#ifdef ESP_PLATFORM
-    WiFi.disconnect(true, true);  // disable wifi, erase ap info
-    delay(1000);
-    WiFi.mode(WIFI_STA);
-#endif
+    connect_wifi();
 
-    WiFi.begin(ssid, pwd);
-    WiFi.config(ip, gateway, subnet);
-    
-    while (WiFi.status() != WL_CONNECTED) {
-        Serial.print(".");
-        fastblink(2);
-//        delay(500);
-    }
-    
-    Serial.print("WiFi connected, IP = ");
-    Serial.println(WiFi.localIP());
-
-    // publish osc messages (default publish rate = 30 [Hz])
-
-
-
-  // this listens for messages, sends results to onPlantMessageReceived function
-    OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
+    setup_sensor();
 
   
 }
 
+
+void connect_wifi(){
+   if(WiFi.status() != WL_CONNECTED){
+      Serial.println("connecting to wifi");
+#ifdef ESP_PLATFORM
+      WiFi.disconnect(true, true);  // disable wifi, erase ap info
+      delay(1000);
+      WiFi.mode(WIFI_STA);
+#endif
+  
+      WiFi.begin(ssid, pwd);
+      WiFi.config(ip, gateway, subnet);
+      
+      while (WiFi.status() != WL_CONNECTED) {
+          Serial.print(".");
+          fastblink(2);
+  //        delay(500);
+      }
+      
+      Serial.print("WiFi connected, IP = ");
+      Serial.println(WiFi.localIP());
+   }
+  
+}
+
+
 int count = 0;
 void loop() {
+    connect_wifi();
+    OscWiFi.update();  // should be called to receive + send osc
 
     loop_sensor();
   
-    OscWiFi.update();  // should be called to receive + send osc
-
-  
-    /*
-    // just send message 5 times, for testing
-    if(sendcount <= 5 || random(100) < 5){
-//      sendPlantMessage(host, count, 456);
-      sendToAll("/plantmessage", sendcount);
-      sendcount++;
-//      OscWiFi.send(host, publish_port, "/plantmessage", count, 456); // to publish osc
-      delay(500);
-    }
-*/
 
 }
 
@@ -219,16 +189,14 @@ void sendToAll(String channel, int message){
 }
 
 void sendMessage(String host, String channel, int part1){
+    connect_wifi();
+  
     Serial.println("sending " + host + channel + ":"+publish_port );
     OscWiFi.send(host, publish_port, channel, part1); // to publish osc  
 }
 
 
-void sendPlantMessage(String host, int part1, int part2){
-  Serial.print("sending plantmessage message to " );
-  Serial.println(host );  
-  sendMessage(host, "/plantmessage", part1);
-}
+
 
 void fastblink(int times){
   for(int i = 0; i< times; i++){
@@ -266,6 +234,9 @@ void resolveids(){
 
 
 void setup_sensor(){
+
+  OscWiFi.subscribe(recv_port, "/danger", onDangerMessageReceived);
+
 
   // gyro/accel stuff
   bool lsm6ds_success, lis3mdl_success;

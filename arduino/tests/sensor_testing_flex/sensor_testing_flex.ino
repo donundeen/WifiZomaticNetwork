@@ -217,8 +217,8 @@ void resolveids(){
   Serial.println(thishumanname);
 }
 
-int redFlexPin = A4;
-int blackFlexPin = A3;
+int redFlexPin = A3;
+int blackFlexPin = A4;
 int redReading  = 3;      // the analog reading from the FSR resistor divider
 int blackReading  = 3;      // the analog reading from the FSR resistor divider
 
@@ -240,15 +240,15 @@ A3 : 9 up from bottom on long side.
 // gnd is 4 down on long side
 */
 /*
- * Connect one end of Flex  to 5V, the other end to Analog 8.
-Then connect one end of a 10K resistor from Analog 8 to ground
+ * Connect one end of Flex  to 5V, the other end to Analog 4.
+Then connect one end of a 10K resistor from Analog 4 to ground
 
-red flex:
+red flex: A3
 range when unflexed is around 1085 to 1157
 heavily flexed is around 800
 so trigger at 900
 
-black flex:
+black flex: A4
 range when unflexed is around 291 to 316
 heavily flexed is around 60
 so trigger at 200
