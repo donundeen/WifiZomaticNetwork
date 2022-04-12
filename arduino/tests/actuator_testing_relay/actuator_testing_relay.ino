@@ -263,7 +263,7 @@ void loop_actuator(){
     // drive 2 dc motors at speed=255, clockwise
     Serial.println("loop");
 
-    randflip(250);
+    randflip(500);
     delay(100);
 
 }

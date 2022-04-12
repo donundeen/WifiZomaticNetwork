@@ -99,7 +99,6 @@ void setup() {
     Serial.println(thisarduinomac);
     resolveids();
 
-
     // WiFi stuff (no timeout setting for WiFi)
     Serial.print("connecting to SSID ");
     Serial.println(ssid);
@@ -112,9 +111,7 @@ void setup() {
       reconnect();
     } 
 
-    setup_sensor();
-
-  
+    setup_sensor();  
 }
 
 
@@ -273,13 +270,9 @@ String mode = "wait"; // 'search' or 'alerting' or 'wait'
  */
 int servoPin = A0;
 Servo myservo;  // create servo object to control a servo
-int stopSpeed = 95;
-int downPos = 10;
-int upPos = 100;
-int pos = downPos; // start pos at the lowest
 
-int waterLevel = 0;
-int poopLevel =0;
+int waterLevel = 4500;
+int poopLevel = 0 ;
 
 
 void pre_setup_sensor(){
@@ -308,68 +301,92 @@ void sensor_sub_callback(String topic, String message){
   }
 }
 
+
+int triggerPin1 =  A0 ; //(GPIO 26) // 5 down on long side
+int val1 = LOW;
+
 void setup_sensor(){
-    Serial.println("setup_sensor");
+    pinMode(triggerPin1, OUTPUT);
 
-
-/* A4 / 36 ( 8 up from bottom on long side) - 
- *  this is an analog input A4 and also GPI #36. 
- *  Note it is _not_ an output-capable pin! It uses ADC #1
-
-// 3V is 2nd down from top on long 
-// gnd is 4 down on long side
-*/
-/*
- * Connect one end of photoresistor  to 5V, the other end to Analog 4 (gpio36).
-Then connect one end of a 10K resistor from Analog 4 to ground
- */
-  myservo.attach(servoPin);  // attaches the servo on pin 9 to the servo object
- // mode = "search";
-  // set servo stop spee depedning on servo/device
-
- // calibrate_servo();
-  
-  myservo.write(pos);  // move to start position
-  
 }
 
 void loop_sensor(){
   //Serial.println("loop_sensor");
   //calibrate_servo();
-  if (mode == "wait"){
- //   detect_danger();
-  }
-  delay(100);
+
+  /*
+   * // testing it
+  rustle_leaves();
+  poopLevel++;
+  waterLevel = waterLevel - 250;
+  delay(5000);
+  */
 }
-
-int prev_light = -1;
-int timer = 0;
-
-int prev_dangervalue = -1;
-int danger_threshold = 150;
-int readssincedanger = 0; // lets do a few reads before sending danger again.
-int selfDangers = 0;
 
 // this servo has absolute positioning, just set the number 0-180
 
-/*
+
+// the higher the threshold value, the MORE flipping that should happen
+void randflip(int threshold){
+  //Serial.println("randflip");
+  int rand1 = random(1000);
+  //Serial.println(rand1);
+ 
+  if(rand1 < threshold){
+  //  Serial.println(flipcount++);
+    val1 = (val1 == LOW ? HIGH : LOW);
+  //  Serial.print("val1 ");
+   // Serial.println(val1);
+    digitalWrite(triggerPin1, val1);    
+  }
+}
+
+
+void rustle_leaves(){
+  /*
+   * Variables:
+   * poopLevel
+   * waterLevel
+   * 
+   * Things to mess with
+   * speed of loop
+   * threshold (likelihood of a switch)
+   * duration of the rustling period
+   * 
+   * more poopLevel = more active rustling
+   * more waterLevel = longer duration of rustling
+   */
+
+   /* Water
 Value out of soil: 4095
 Value in moist soil: ~2000, each reading +/-50 (range of 100)
 drier soil: ~3000
- */
-void setBranchPos(){
-  pos = constrain(map(waterLevel, 3000, 1500, downPos, upPos), downPos, upPos+10);
-  Serial.println("branch pos"+ String(pos));
-//  myservo.write(pos);  // move to best light
-  slow(pos);
-}
+ */ 
+  int durationScale = constrain(map(waterLevel, 3000, 1500, 1000, 5000), 1000, 5000);
+  float rateScale = constrain(map(poopLevel, 0.0, 20.0, 0, 1000), 0.0, 1000) / 1000.0; 
+  Serial.println("water: "+String(waterLevel)+" -> duration " + String(durationScale));
+  Serial.println("poop: "+ String(poopLevel)+" -> rateScale " +  String(rateScale));
+  Serial.println(rateScale);
+  int durationCount = 0;
+  int threshold = rateScale * 1000;
+  int delaytime = 550 - (rateScale * 500); 
+  Serial.println("duration " + String(durationScale) + ", threshold "+String(threshold)+ ", delaytime " + String(delaytime));
+  while (durationCount < durationScale){
 
+    randflip(threshold);
+    delay(delaytime);
+    durationCount = durationCount + delaytime;
+    
+  }
+  Serial.println("done rustling");
+  
+}
 
 void onDangerMessageReceived(String message) {
   // danger message received, go into search mode;
  
   Serial.println("++++++++++++++++++++++++ got danger message!");
-  jerk_branch();
+  rustle_leaves();
 }
 
 void onWaterMessageReceived(String message) {
@@ -382,61 +399,9 @@ drier soil: ~3000
   Serial.print("+++++++++++++++++++++++++++ got water message: ");
   Serial.println(message);
   waterLevel = message.toInt();
-  setBranchPos(); 
 }
 
 void onPoopMessageReceived(String message) {
   Serial.println("Ppppppppppppppppppppppppppp poop message received");
   poopLevel++;
-  jerk_branch(); 
-}
-
-void calibrate_servo(){
-  Serial.println("moving to 0");
-  myservo.write(0);
-  delay(5000);
-  Serial.println("moving to 90");
-  myservo.write(90);
-  delay(5000);
-  Serial.println("moving to 180");
-  myservo.write(180);
-  delay(5000);
-}
-
-void jerk_branch(){
-  // a little reaction jerk, so we can see when an important message came in (like a poop)
-  int leftpos = pos - constrain(poopLevel,2,20);
-  int rightpos = pos + constrain(poopLevel, 2,20);
-  myservo.write(leftpos);  // move to best light
-  delay(150);
-  myservo.write(rightpos);  // move to best light
-  delay(150);
-  myservo.write(pos);  // move to best light
-}
-
-int s = 20; //pre-programmed speed (higher is slower)
-int angle=0; // we will use this one later 
-
-void slow (int i) //function name 
-{
-
-  i = constrain (i, downPos, upPos);
-  angle =myservo.read(); //reads the actual angle 
-  //Decides what direction to take 
-  if ( i >= angle) {
-    for (angle = angle; angle <= i; angle=angle +1)
-    {
-      myservo.write(angle);                             
-      delay(s); 
-     } 
-  }
-  else 
-  { 
-    for (angle = angle; angle >= i; angle=angle- 1)
-    {
-      myservo.write(angle);
-      delay(s); 
-    } 
-  }
-                    
 }
