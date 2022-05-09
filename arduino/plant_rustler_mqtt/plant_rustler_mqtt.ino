@@ -362,8 +362,8 @@ Value out of soil: 4095
 Value in moist soil: ~2000, each reading +/-50 (range of 100)
 drier soil: ~3000
  */ 
-  int durationScale = constrain(map(waterLevel, 3000, 1500, 1000, 5000), 1000, 5000);
-  float rateScale = constrain(map(poopLevel, 0.0, 20.0, 0, 1000), 0.0, 1000) / 1000.0; 
+  int durationScale = constrain(map(waterLevel, 3000, 1500, 1000, 6000), 1000, 6000);
+  float rateScale = constrain(map(poopLevel, 0.0, 20.0, 200, 1000), 0.0, 1000) / 1000.0; 
   Serial.println("water: "+String(waterLevel)+" -> duration " + String(durationScale));
   Serial.println("poop: "+ String(poopLevel)+" -> rateScale " +  String(rateScale));
   Serial.println(rateScale);
